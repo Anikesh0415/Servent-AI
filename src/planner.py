@@ -1,91 +1,108 @@
 import json
-import requests
 import re
+import requests
 
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
-PLANNER_MODEL = "qwen2.5:1.5b" # ARIA Model
 
-# The system prompt enforces the schema for the planner
-PLANNER_SYSTEM_PROMPT = """You are ARIA, the Master Planner agent for a desktop automation system.
-Your job is to break down the user's high-level request into a JSON array of atomic UI actions.
+# Phase 1: Downsized to 3B (2.2 GB RAM) so ARIA + VISTA fit simultaneously.
+PLANNER_MODEL = "qwen2.5:3b-instruct-q4_K_M"
 
-AVAILABLE ACTIONS:
-- "open_app": {"action": "open_app", "app": "<name>"}
-- "type": {"action": "type", "text": "<text>"}
-- "key": {"action": "key", "key": "<key_name>"}
-- "click": {"action": "click", "x": <int>, "y": <int>}
-- "scroll": {"action": "scroll", "amount": <int>}
+# ---------------------------------------------------------------------------
+# ARIA SYSTEM PROMPT
+# ---------------------------------------------------------------------------
+PLANNER_SYSTEM_PROMPT = """You are ARIA, the Master Planner for a desktop automation system.
+Break the user's request into a JSON action plan.
 
-RULES:
-1. Output ONLY a valid JSON array of action objects.
-2. NO markdown formatting, NO conversational text, NO explanation.
-3. Keep steps logical and sequential.
-4. IMPORTANT: When the user asks you to search for something, generate text, or submit a prompt, you MUST output a "type" action followed IMMEDIATELY by a {"action": "key", "key": "enter"} action to submit it.
+AVAILABLE ACTIONS (use ONLY these):
+  {"action": "open_app",        "app": "<name>"}
+  {"action": "navigate_browser","url": "<full_url>"}
+  {"action": "type",            "text": "<text>",  "anchor_check": "<what VISTA should see after this>"}
+  {"action": "key",             "key": "<key_name>","anchor_check": "<what VISTA should see after this>"}
+  {"action": "copy_all"}
+  {"action": "paste"}
+  {"action": "click",           "x": <int>, "y": <int>}
+  {"action": "scroll",          "amount": <int>}
 
-EXAMPLE INPUT: "Search for cute cats on youtube"
-EXAMPLE OUTPUT:
+STRICT RULES:
+1. Output ONLY a raw JSON array. No markdown. No explanation. No trailing text.
+2. NEVER use "click" if a keyboard shortcut achieves the same result.
+3. After every "type" action into a search bar or AI prompt box, you MUST add a {"action":"key","key":"enter"} step.
+4. Every "type" and "key" step MUST include an "anchor_check" field: a short description of what should be visible on screen after the step succeeds (e.g. "cursor in chat box", "YouTube homepage is visible").
+5. Use "navigate_browser" (not "open_app") when the browser is already open and you need to go to a URL.
+6. Do NOT output any keys other than those listed above.
+
+EXAMPLE — "open gemini and ask it to write a poem":
+[
+  {"action": "open_app", "app": "gemini"},
+  {"action": "type", "text": "write a poem about the ocean", "anchor_check": "text visible in Gemini prompt box"},
+  {"action": "key", "key": "enter", "anchor_check": "Gemini response is loading or visible"}
+]
+
+EXAMPLE — "search for python tutorials on youtube":
 [
   {"action": "open_app", "app": "youtube"},
-  {"action": "type", "text": "cute cats"},
-  {"action": "key", "key": "enter"}
-]
+  {"action": "type", "text": "python tutorials", "anchor_check": "search text visible in YouTube search bar"},
+  {"action": "key", "key": "enter", "anchor_check": "YouTube search results page is visible"}
+]"""
 
-EXAMPLE INPUT: "generate letter to balram asking how he is"
-EXAMPLE OUTPUT:
-[
-  {"action": "type", "text": "generate letter to balram asking how he is"},
-  {"action": "key", "key": "enter"}
-]
-"""
-
-# JSON Schema for Ollama constrained decoding
-PLANNER_SCHEMA = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "properties": {
-            "action": {
-                "type": "string",
-                "enum": ["open_app", "type", "key", "click", "scroll"]
-            },
-            "app": {"type": "string"},
-            "text": {"type": "string"},
-            "key": {"type": "string"},
-            "x": {"type": "integer"},
-            "y": {"type": "integer"},
-            "amount": {"type": "integer"}
-        },
-        "required": ["action"]
-    }
-}
 
 def generate_plan(instruction: str) -> list:
-    """Generates a plan of actions using the ARIA model."""
-    prompt = f"User Request: {instruction}\nGenerate the JSON action plan."
-    
+    """
+    Calls ARIA (qwen2.5:3b) to generate a structured action plan.
+    - keep_alive: -1  → model stays pinned in RAM permanently (Phase 1).
+    - format: json    → Ollama enforces valid JSON output (Phase 2).
+    - temperature: 0  → Fully deterministic / no hallucinations.
+    """
+    prompt = f"User Request: {instruction}\nOutput the JSON action plan now."
+
     payload = {
         "model": PLANNER_MODEL,
         "system": PLANNER_SYSTEM_PROMPT,
         "prompt": prompt,
         "stream": False,
-        "format": PLANNER_SCHEMA,
+        "format": "json",       # Phase 2: enforces valid JSON at the token level
+        "keep_alive": -1,       # Phase 1: pin ARIA in RAM forever
         "options": {
-            "temperature": 0.0 # Deterministic planning
+            "temperature": 0.0,
+            "num_predict": 512,
         }
     }
-    
+
     try:
-        response = requests.post(OLLAMA_API_URL, json=payload, timeout=30)
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=60)
         response.raise_for_status()
         result_text = response.json().get("response", "").strip()
-        
-        # Parse the JSON
-        plan = json.loads(result_text)
-        return plan
+
+        # The model MUST return a JSON array. Try direct parse first.
+        parsed = json.loads(result_text)
+
+        # If the model wrapped the array in a dict (e.g. {"plan": [...]}) unwrap it.
+        if isinstance(parsed, dict):
+            for v in parsed.values():
+                if isinstance(v, list):
+                    parsed = v
+                    break
+
+        if not isinstance(parsed, list):
+            raise ValueError(f"Expected a JSON array, got: {type(parsed)}")
+
+        return parsed
+
+    except json.JSONDecodeError as e:
+        print(f"[ARIA Planner] JSON decode error: {e}\nRaw response: {result_text}")
+        # Last-resort: try to extract a JSON array with regex
+        match = re.search(r'\[.*\]', result_text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                pass
+        return []
     except Exception as e:
-        print(f"[ARIA Planner Error] Failed to generate plan: {e}")
+        print(f"[ARIA Planner Error] {e}")
         return []
 
+
 if __name__ == "__main__":
-    plan = generate_plan("open notepad and type hello")
-    print(f"Generated Plan: {json.dumps(plan, indent=2)}")
+    plan = generate_plan("open notepad and type hello world")
+    print(f"Generated Plan:\n{json.dumps(plan, indent=2)}")

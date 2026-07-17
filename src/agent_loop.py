@@ -1,85 +1,127 @@
 import time
 from src.planner import generate_plan
-from src.action_library import open_app_action, type_action, key_action, click_action, scroll_action
-from src.vision import verify_action_success
+from src.action_library import (
+    open_app, navigate_browser,
+    type_action, key_action,
+    click_action, scroll_action,
+    copy_all, paste_action,
+)
+from src.vision import verify_anchor, smart_wait_for_completion
+
+# How long to wait after open_app before starting verification
+APP_OPEN_WAIT  = 3.0   # seconds — enough for a browser tab to appear
+# How long to wait after any instant action before the next step
+ACTION_PAUSE   = 0.3   # seconds
+
+# For open_app, VISTA will retry verification up to this many times
+OPEN_APP_MAX_RETRIES = 3
+OPEN_APP_RETRY_DELAY = 2.0   # seconds between retries
+
 
 def execute_react_loop(instruction: str, update_callback=None):
     """
-    Executes the full ReAct loop for a given instruction.
-    1. Plan (ARIA)
-    2. Act -> Verify (VISTA) -> Loop
+    Executes the full ReAct loop:
+      Plan (ARIA) → Act → Anchor-Verify (VISTA) → loop
+
+    Verification strategy (Phase 4):
+      - open_app / navigate_browser : VISTA checks the anchor up to 3×,
+                                      waits between retries (page may still load).
+      - type / key                  : VISTA checks anchor ONCE, then moves on.
+      - copy_all / paste / click … : skipped — these are instant & unambiguous.
     """
-    def notify(msg):
+    def notify(msg: str):
         print(f"[Agent Loop] {msg}")
         if update_callback:
             update_callback(msg)
-            
+
     notify(f"Thinking about: '{instruction}'...")
-    
-    # 1. PLAN Phase
+
+    # ── 1. PLAN ────────────────────────────────────────────────────────────
     plan = generate_plan(instruction)
-    
+
     if not plan:
-        notify("Failed to generate a plan.")
+        notify("ARIA failed to generate a plan. Aborting.")
         return
-        
-    notify(f"ARIA generated plan with {len(plan)} steps.")
-    
-    # 2. EXECUTE Phase
-    for step_idx, step in enumerate(plan):
-        action_type = step.get("action")
-        action_desc = str(step)
-        
-        notify(f"Step {step_idx+1}/{len(plan)}: Executing {action_type}...")
-        
-        # Execute action
+
+    notify(f"ARIA plan: {len(plan)} step(s).")
+
+    # ── 2. EXECUTE + VERIFY ────────────────────────────────────────────────
+    for idx, step in enumerate(plan):
+        action_type  = step.get("action", "").lower()
+        anchor_check = step.get("anchor_check", "")   # Phase 4 anchor
+
+        notify(f"Step {idx+1}/{len(plan)}: {action_type}")
+
+        # ── ACT ────────────────────────────────────────────────────────────
         try:
             if action_type == "open_app":
-                open_app_action(step.get("app", ""))
+                open_app(step.get("app", ""))
+
+            elif action_type == "navigate_browser":
+                navigate_browser(step.get("url", ""))
+
             elif action_type == "type":
                 type_action(step.get("text", ""))
+
             elif action_type == "key":
                 key_action(step.get("key", ""))
+
             elif action_type == "click":
                 click_action(step.get("x", 0), step.get("y", 0))
+
             elif action_type == "scroll":
                 scroll_action(step.get("amount", 0))
+
+            elif action_type == "copy_all":
+                copy_all()
+
+            elif action_type == "paste":
+                paste_action()
+
             else:
-                notify(f"Unknown action: {action_type}")
+                notify(f"Unknown action '{action_type}' — skipping.")
                 continue
+
         except Exception as e:
-            notify(f"Action failed: {e}")
+            notify(f"Action raised an exception: {e}")
             continue
-            
-        # Give the UI time to update before capturing screen
-        time.sleep(1.0)
-        
-        # 3. VERIFY Phase (VISTA) - OPTIMIZATION: Only verify open_app
-        # Running VISTA takes ~8s per step, so we skip it for everything else to ensure instant response.
-        if action_type not in ["open_app"]:
-            notify(f"Skipping VISTA verification for instant action: {action_type}")
+
+        # ── VERIFY (Phase 4: anchor-based) ─────────────────────────────────
+
+        # Actions that need no verification — they are instant and deterministic
+        NO_VERIFY = {"scroll", "copy_all", "paste", "click"}
+        if action_type in NO_VERIFY or not anchor_check:
+            time.sleep(ACTION_PAUSE)
             continue
-            
-        notify(f"Verifying {action_type} with VISTA (Takes ~8s)...")
-        
-        max_retries = 3
-        success = False
-        
+
+        # For page-loading actions: give the OS a head-start before asking VISTA
+        if action_type in {"open_app", "navigate_browser"}:
+            notify(f"Waiting {APP_OPEN_WAIT}s for page/app to load...")
+            time.sleep(APP_OPEN_WAIT)
+            max_retries = OPEN_APP_MAX_RETRIES
+        else:
+            # For type / key: short pause, single check
+            time.sleep(ACTION_PAUSE)
+            max_retries = 1
+
+        # Run anchor verification
+        verified = False
         for attempt in range(max_retries):
-            is_success = verify_action_success(action_desc)
-            if is_success:
-                success = True
-                notify(f"Step {step_idx+1} verified successfully.")
+            notify(f"VISTA anchor check (attempt {attempt+1}/{max_retries}): '{anchor_check}'")
+            if verify_anchor(anchor_check):
+                notify(f"Anchor confirmed ✓")
+                verified = True
                 break
             else:
                 if attempt < max_retries - 1:
-                    notify(f"Verification failed (Attempt {attempt+1}/{max_retries}). Retrying in 2s...")
-                    time.sleep(2)
-        
-        if not success:
-            notify(f"Warning: Step {step_idx+1} could not be verified by VISTA. Proceeding anyway...")
-            
-    notify("Task execution complete.")
+                    notify(f"Anchor not yet visible, retrying in {OPEN_APP_RETRY_DELAY}s...")
+                    time.sleep(OPEN_APP_RETRY_DELAY)
+
+        if not verified:
+            notify(f"Warning: anchor could not be confirmed — proceeding anyway.")
+
+    notify("Task complete.")
+
 
 if __name__ == "__main__":
-    execute_react_loop("open youtube")
+    execute_react_loop("open youtube and search for lo-fi music")

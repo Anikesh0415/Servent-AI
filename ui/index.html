@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Automation Center</title>
+    <!-- Modern Clean Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Guaranteed Reliable Backgrounds -->
+    <div class="video-container">
+        <!-- Space uses the CSS animated image -->
+        <div id="bg-image" class="animated-bg" style="background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop');"></div>
+        <!-- Real Videos use this tag -->
+        <video autoplay muted loop playsinline id="bg-video" style="display: none;">
+            <source src="" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
+    </div>
+
+    <div class="dashboard">
+        
+        <!-- Top Status Bar -->
+        <header class="top-bar glass">
+            <!-- Left: Sidebar Toggle and Sys Info -->
+            <div class="sys-info">
+                <button class="icon-btn" id="sidebar-toggle" style="margin-right: 15px;"><i class="fa-solid fa-bars"></i></button>
+                <i class="fa-solid fa-code-branch"></i>
+                <span id="sys-state">Initializing Core...</span>
+            </div>
+            
+            <!-- Center: Time and Theme -->
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <select id="bg-select" class="voice-select glass">
+                    <option value="image|https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop">Space Nebula</option>
+                    <option value="video|assets/mountain.mp4">Mountain Scenery</option>
+                    <option value="video|assets/ocean.mp4">Ocean</option>
+                    <option value="video|assets/city.mp4">City Street</option>
+                </select>
+                <div class="time-widget" id="time-widget">
+                    00:00 AM
+                </div>
+            </div>
+            
+            <!-- Right: Connection Status and Modes Toggle -->
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div class="connection-status">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span id="ws-status">Connecting</span>
+                </div>
+                <button class="icon-btn" id="modes-sidebar-toggle" title="Toggle Modes"><i class="fa-solid fa-sliders"></i></button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Developer Automation Dock -->
+            <aside id="quick-actions-panel" class="quick-actions glass">
+                <h3>Code Assistant</h3>
+                <button class="action-btn" data-cmd="Switch to VS Code, read the code currently on my screen, and check it for any bugs or optimizations."><i class="fa-solid fa-file-code"></i> Review VS Code</button>
+                <button class="action-btn" data-cmd="Switch to Notepad, read the text currently open, and explain what it does or fix any errors."><i class="fa-solid fa-clipboard-list"></i> Check Notepad</button>
+                <button class="action-btn" data-cmd="Read the code on my screen and generate unit tests for it."><i class="fa-solid fa-flask"></i> Write Unit Tests</button>
+                <button class="action-btn" data-cmd="Look at the error message visible on my screen, search for a fix, and explain it to me."><i class="fa-solid fa-bug"></i> Debug Screen Error</button>
+            </aside>
+
+            <!-- Center Chat Interface -->
+            <section class="chat-container glass">
+                <div class="chat-header" style="justify-content: flex-end;">
+                    <div class="audio-dropdown-container">
+                        <button class="icon-btn" id="tts-toggle" title="Audio Options"><i class="fa-solid fa-volume-high"></i></button>
+                        <div id="voice-dropdown" class="voice-dropdown-content glass">
+                            <label>Select Voice</label>
+                            <select id="voice-select" class="voice-select glass">
+                                <option value="">Loading voices...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-log" id="chat-log">
+                    <div class="message system-msg">
+                        <div class="msg-bubble">Servent Protocol Online. Awaiting command...</div>
+                    </div>
+                </div>
+                
+                <div class="input-area">
+                    <div class="action-status">
+                        <i class="fa-solid fa-bolt"></i> <span id="action-text">Standby</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="text" id="text-command-input" placeholder="Type an automation command..." autocomplete="off">
+                        <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Modes Access Sidebar -->
+            <aside id="modes-panel" class="modes-panel glass">
+                <h3>Access Modes</h3>
+                <button class="toggle-btn" id="dictate-toggle" title="Dictation Mode (Type with voice)"><i class="fa-solid fa-microphone-lines"></i> Dictate</button>
+                <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode (Record and Summarize)"><i class="fa-solid fa-users-viewfinder"></i> Meeting</button>
+                <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 5px 0;">
+                <button class="mode-btn active" data-mode="BOTH" title="Full Ecosystem">Both</button>
+                <button class="mode-btn" data-mode="CAMERA_ONLY" title="Cursor Control Only">Camera</button>
+                <button class="mode-btn" data-mode="VOICE_ONLY" title="Voice Assistant Only">Voice</button>
+                <button class="mode-btn standby" data-mode="STANDBY" title="Standby Mode">Standby</button>
+            </aside>
+        </main>
+
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

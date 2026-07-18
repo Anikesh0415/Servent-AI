@@ -88,15 +88,15 @@ def smart_wait_for_completion(
     elapsed = 0.0
 
     while elapsed < max_wait_seconds:
-        still_loading = vista_analyze(
-            f"Answer ONLY YES or NO. {loading_indicator_question}"
+        is_met = vista_analyze(
+            f"Answer ONLY YES or NO. Is this condition met: '{loading_indicator_question}'?"
         ).upper()
 
-        if "NO" in still_loading:
-            print(f"[VISTA SmartWait] Loading complete after {elapsed:.1f}s.")
+        if "YES" in is_met:
+            print(f"[VISTA SmartWait] Condition met after {elapsed:.1f}s.")
             return True
 
-        print(f"[VISTA SmartWait] Still loading... ({elapsed:.1f}s elapsed)")
+        print(f"[VISTA SmartWait] Still waiting for condition... ({elapsed:.1f}s elapsed)")
         time.sleep(poll_interval)
         elapsed += poll_interval
 

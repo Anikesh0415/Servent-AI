@@ -86,6 +86,27 @@ def execute_react_loop(instruction: str, update_callback=None):
             elif action_type == "paste":
                 paste_action()
 
+            elif action_type == "wait_until":
+                condition = step.get("condition", "")
+                if condition:
+                    notify(f"Waiting for condition: '{condition}'...")
+                    success = smart_wait_for_completion(condition)
+                    if not success:
+                        notify(f"Wait timeout for: {condition}")
+                        return
+                    continue # Skip anchor verify since wait handles it
+
+            elif action_type == "speak":
+                text = step.get("text", "")
+                notify(f"Speaking: {text}")
+                try:
+                    import pyttsx3
+                    engine = pyttsx3.init()
+                    engine.say(text)
+                    engine.runAndWait()
+                except Exception:
+                    pass
+
             else:
                 notify(f"Unknown action '{action_type}' — skipping.")
                 continue
@@ -97,7 +118,7 @@ def execute_react_loop(instruction: str, update_callback=None):
         # ── VERIFY (Phase 4: anchor-based) ─────────────────────────────────
 
         # Actions that need no verification — they are instant and deterministic
-        NO_VERIFY = {"scroll", "copy_all", "paste", "click"}
+        NO_VERIFY = {"scroll", "copy_all", "paste", "click", "speak", "wait_until"}
         if action_type in NO_VERIFY or not anchor_check:
             time.sleep(ACTION_PAUSE)
             continue

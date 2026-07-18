@@ -8,14 +8,27 @@ import requests
 # ---------------------------------------------------------------------------
 
 def clean_and_parse_json(raw_text: str):
-    """Strips markdown fences and whitespace before calling json.loads."""
+    """Aggressively finds and parses the first JSON array in the text."""
     raw_text = raw_text.strip()
+    
+    # Try to find the outermost array bounds
+    start_idx = raw_text.find('[')
+    end_idx = raw_text.rfind(']')
+    
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        json_str = raw_text[start_idx:end_idx+1]
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass # Fall back to full text parse
+
     # Strip opening fence (e.g. ```json or ```)
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[-1]
     # Strip closing fence
     if raw_text.endswith("```"):
         raw_text = raw_text.rsplit("\n", 1)[0]
+        
     return json.loads(raw_text.strip())
 
 

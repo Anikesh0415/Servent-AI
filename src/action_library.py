@@ -80,7 +80,7 @@ def open_app(app_name: str) -> str:
     if target:
         # Open URL in default browser via Win+R -> run dialog
         _hotkey('win', 'r')
-        time.sleep(0.4)          # Wait for Run dialog to appear
+        time.sleep(0.6)          # Wait for Run dialog to appear
         type_action(target)
         time.sleep(0.1)
         pyautogui.press('enter')
@@ -88,7 +88,7 @@ def open_app(app_name: str) -> str:
     else:
         # Unknown app — open via Win+R with the app name
         _hotkey('win', 'r')
-        time.sleep(0.4)
+        time.sleep(0.6)
         type_action(app_lower)
         time.sleep(0.1)
         pyautogui.press('enter')

@@ -123,7 +123,7 @@ def generate_plan(instruction: str) -> list:
 
     result_text = ""
     try:
-        response = requests.post(OLLAMA_API_URL, json=payload, timeout=60)
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=300)
         response.raise_for_status()
         result_text = response.json().get("response", "").strip()
 

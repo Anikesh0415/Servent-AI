@@ -43,8 +43,8 @@ def extract_steps(parsed_data) -> list:
 
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
-# Phase 1: Upgraded to Llama 3.1 8B for highly robust instruction following
-PLANNER_MODEL = "llama3.1:latest"
+# Phase 1: Upgraded to Qwen 14B for maximum reasoning (Heavy but extremely accurate)
+PLANNER_MODEL = "qwen2.5:14b"
 
 # ---------------------------------------------------------------------------
 # ARIA SYSTEM PROMPT

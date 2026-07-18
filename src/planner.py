@@ -68,7 +68,7 @@ STEP TYPES AVAILABLE:
 - scroll: {"action": "scroll", "direction": "down", "amount": 3}
 - speak: {"action": "speak", "text": "what to say to user"}
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT FORMAT (strict JSON array - you MUST start with [ and end with ]):
 [
   {"id": 1, "action": "...", "description": "why this step", ...params}
 ]
@@ -112,11 +112,10 @@ def generate_plan(instruction: str) -> list:
         "system": PLANNER_SYSTEM_PROMPT,
         "prompt": prompt,
         "stream": False,
-        "format": "json",
         "keep_alive": -1,
         "options": {
             "temperature": 0.0,
-            "num_predict": 512,
+            "num_predict": 4096,
         }
     }
 

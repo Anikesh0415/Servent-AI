@@ -49,10 +49,16 @@ PLANNER_MODEL = "qwen2.5:3b-instruct-q4_K_M"
 # ---------------------------------------------------------------------------
 # ARIA SYSTEM PROMPT
 # ---------------------------------------------------------------------------
-PLANNER_SYSTEM_PROMPT = """You are ARIA, the Master Planner for a desktop automation system.
-Break the user's request into a JSON action plan.
+PLANNER_SYSTEM_PROMPT = """You are ARIA, an autonomous AI controlling a Windows 11 computer.
 
-AVAILABLE ACTIONS (use ONLY these):
+CRITICAL RULES — NEVER VIOLATE:
+1. You MUST output ONLY valid JSON, nothing else
+2. You MUST include EVERY single step — never skip any
+3. For tasks involving multiple apps, expect 8–15+ steps
+4. NEVER output fewer than 5 steps for any command with 'and', 'then', 'copy', 'send', 'open'
+5. Each step must be a specific executable action, not a summary
+
+STEP TYPES AVAILABLE:
   {"action": "open_app",        "app": "<name>"}
   {"action": "navigate_browser","url": "<full_url>"}
   {"action": "type",            "text": "<text>",  "anchor_check": "<what VISTA should see after this>"}
@@ -61,28 +67,35 @@ AVAILABLE ACTIONS (use ONLY these):
   {"action": "paste"}
   {"action": "click",           "x": <int>, "y": <int>}
   {"action": "scroll",          "amount": <int>}
+  {"action": "speak",           "text": "what to say to user"}
 
-STRICT RULES:
-1. Output ONLY a raw JSON array. No markdown. No explanation. No trailing text.
-2. NEVER use "click" if a keyboard shortcut achieves the same result.
-3. After every "type" action into a search bar or AI prompt box, you MUST add a {"action":"key","key":"enter"} step.
-4. Every "type" and "key" step MUST include an "anchor_check" field: a short description of what should be visible on screen after the step succeeds (e.g. "cursor in chat box", "YouTube homepage is visible").
-5. Use "navigate_browser" (not "open_app") when the browser is already open and you need to go to a URL.
-6. Do NOT output any keys other than those listed above.
-
-EXAMPLE — "open gemini and ask it to write a poem":
+OUTPUT FORMAT (strict JSON):
 [
-  {"action": "open_app", "app": "gemini"},
-  {"action": "type", "text": "write a poem about the ocean", "anchor_check": "text visible in Gemini prompt box"},
-  {"action": "key", "key": "enter", "anchor_check": "Gemini response is loading or visible"}
+  {"id": 1, "action": "...", "description": "why this step", ...params}
 ]
 
-EXAMPLE — "search for python tutorials on youtube":
+EXAMPLE — 'Open Gemini, write a letter, send via WhatsApp':
 [
-  {"action": "open_app", "app": "youtube"},
-  {"action": "type", "text": "python tutorials", "anchor_check": "search text visible in YouTube search bar"},
-  {"action": "key", "key": "enter", "anchor_check": "YouTube search results page is visible"}
-]"""
+  {"id": 1, "action": "open_browser", "url": "https://gemini.google.com", "description": "Open Gemini"},
+  {"id": 2, "action": "wait_until", "condition": "Gemini chat interface loaded with text input visible"},
+  {"id": 3, "action": "click_element", "target": "Ask Gemini text input box"},
+  {"id": 4, "action": "type_text", "text": "Write a formal letter from Anikesh to Balram asking how Balram is doing"},
+  {"id": 5, "action": "key_shortcut", "keys": "enter"},
+  {"id": 6, "action": "wait_until", "condition": "Gemini response has fully loaded, no loading indicator visible"},
+  {"id": 7, "action": "key_shortcut", "keys": "ctrl+a", "description": "Select all response text"},
+  {"id": 8, "action": "key_shortcut", "keys": "ctrl+c", "description": "Copy the letter"},
+  {"id": 9, "action": "open_app", "name": "WhatsApp"},
+  {"id": 10, "action": "wait_until", "condition": "WhatsApp main window visible with chat list"},
+  {"id": 11, "action": "click_element", "target": "search contacts box"},
+  {"id": 12, "action": "type_text", "text": "Balram"},
+  {"id": 13, "action": "click_element", "target": "Balram in search results"},
+  {"id": 14, "action": "click_element", "target": "message input box"},
+  {"id": 15, "action": "key_shortcut", "keys": "ctrl+v"},
+  {"id": 16, "action": "key_shortcut", "keys": "enter"},
+  {"id": 17, "action": "speak", "text": "Letter sent to Balram successfully"}
+]
+
+DO NOT output anything other than the JSON object."""
 
 
 def generate_plan(instruction: str) -> list:

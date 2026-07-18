@@ -39,6 +39,14 @@ def execute_react_loop(instruction: str, update_callback=None):
     # ── 1. PLAN ────────────────────────────────────────────────────────────
     plan = generate_plan(instruction)
 
+    # CRITICAL CHECK: re-plan if too few steps
+    complex_kw = ["and", "then", "copy", "send", "open", "paste"]
+    is_complex = any(kw in instruction.lower() for kw in complex_kw)
+    
+    if plan and is_complex and len(plan) < 4:
+        notify(f"⚠️ Only {len(plan)} steps generated for complex task — re-planning stricter...")
+        plan = generate_plan(instruction + " [IMPORTANT: This requires multiple apps/actions, list ALL steps]")
+
     if not plan:
         notify("ARIA failed to generate a plan. Aborting.")
         return

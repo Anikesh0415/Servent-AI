@@ -97,11 +97,11 @@ def open_app(app_name: str) -> str:
 
 def navigate_browser(url: str) -> str:
     """
-    Navigates the currently-open browser to a URL using Ctrl+L.
-    Does NOT open a new window — assumes browser is already focused.
+    Navigates to a URL by using the Windows Run dialog (Win+R).
+    This ensures the default browser opens it even if not currently focused.
     """
-    _hotkey('ctrl', 'l')          # Focus the address bar
-    time.sleep(0.2)
+    _hotkey('win', 'r')
+    time.sleep(0.6)
     type_action(url)
     time.sleep(0.1)
     pyautogui.press('enter')

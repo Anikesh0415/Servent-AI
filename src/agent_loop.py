@@ -83,7 +83,11 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
             notify(f"⚠️ Preflight Warning: {pre_res['popup_description']}")
 
         # ── 2. EXECUTE ──────────────────────────────────────────────────────
-        success, exec_msg = exec_mgr.execute_step(step)
+        try:
+            success, exec_msg = exec_mgr.execute_step(step)
+        except Exception as e:
+            success, exec_msg = False, f"Crash during execution: {e}"
+            
         if not success:
             notify(f"Action execution warning: {exec_msg}")
 
@@ -106,7 +110,13 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
         
         for attempt in range(max_retries):
             notify(f"VISTA anchor check (attempt {attempt+1}/{max_retries}): '{anchor_check}'")
-            if verify_anchor(anchor_check):
+            try:
+                anchor_met = verify_anchor(anchor_check)
+            except Exception as e:
+                notify(f"VISTA check crashed: {e}")
+                anchor_met = False
+                
+            if anchor_met:
                 notify("Anchor confirmed ✓")
                 verified = True
                 memory_mgr.log_action(action_type, str(target), exec_msg, True, "Anchor confirmed")
@@ -115,7 +125,10 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
                 if attempt < max_retries - 1:
                     notify(f"Anchor not yet visible, retrying in {OPEN_APP_RETRY_DELAY}s...")
                     time.sleep(OPEN_APP_RETRY_DELAY)
-                    exec_mgr.execute_step(step)
+                    try:
+                        exec_mgr.execute_step(step)
+                    except Exception:
+                        pass
 
         # ── 4. REFLECT & REPLAN ─────────────────────────────────────────────
         if not verified:
@@ -130,13 +143,23 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
                 for rec_step in recovery_plan:
                     rec_action = rec_step.get("action", "").lower()
                     notify(f"Recovery Step: {rec_action}")
-                    exec_mgr.execute_step(rec_step)
+                    try:
+                        rec_success, rec_msg = exec_mgr.execute_step(rec_step)
+                        if not rec_success:
+                            notify(f"Recovery step failed: {rec_msg}")
+                            break # Cascade failure, stop recovery
+                    except Exception as e:
+                        notify(f"Recovery step crashed: {e}")
+                        break
                     time.sleep(1.0)
                 
                 # Final check after recovery
-                if verify_anchor(anchor_check):
-                    notify("Recovery successful! Anchor confirmed ✓")
-                    verified = True
+                try:
+                    if verify_anchor(anchor_check):
+                        notify("Recovery successful! Anchor confirmed ✓")
+                        verified = True
+                except Exception as e:
+                    notify(f"VISTA check crashed during recovery: {e}")
             
         if not verified:
             notify(f"Task stopped: Step {idx+1} could not be verified.")

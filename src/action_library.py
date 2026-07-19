@@ -9,15 +9,7 @@ pyautogui.PAUSE = 0  # No inter-call delays — we control timing ourselves
 # ---------------------------------------------------------------------------
 # KEYBOARD-FIRST URL / APP MAP
 # ---------------------------------------------------------------------------
-BROWSER_APP_MAP = {
-    "youtube":    "https://youtube.com",
-    "gemini":     "https://gemini.google.com",
-    "chatgpt":    "https://chatgpt.com",
-    "google":     "https://google.com",
-    "gmail":      "https://mail.google.com",
-    "github":     "https://github.com",
-    "wikipedia":  "https://wikipedia.org",
-}
+from src.config import BROWSER_APP_MAP
 
 # ---------------------------------------------------------------------------
 # CORE PRIMITIVES
@@ -35,24 +27,30 @@ def type_action(text: str) -> str:
     Avoids key-by-key typing which drops characters at high speed.
     Preserves the original clipboard contents.
     """
-    original_clipboard = pyperclip.paste()
-    pyperclip.copy(text)
-    time.sleep(0.05)
-    _hotkey('ctrl', 'v')
-    time.sleep(0.05)
-    pyperclip.copy(original_clipboard)
-    return f"Typed: '{text}'"
+    try:
+        original_clipboard = pyperclip.paste()
+        pyperclip.copy(text)
+        time.sleep(0.05)
+        _hotkey('ctrl', 'v')
+        time.sleep(0.05)
+        pyperclip.copy(original_clipboard)
+        return f"Typed: '{text}'"
+    except Exception as e:
+        return f"Error typing text: {e}"
 
 
 def key_action(key: str) -> str:
     """Presses a single named key (e.g. 'enter', 'tab', 'esc', 'f5') or shortcut ('ctrl+c')."""
-    if '+' in key:
-        keys = [k.strip() for k in key.split('+')]
-        _hotkey(*keys)
-    else:
-        pyautogui.press(key)
-        time.sleep(0.05)
-    return f"Pressed: '{key}'"
+    try:
+        if '+' in key:
+            keys = [k.strip() for k in key.split('+')]
+            _hotkey(*keys)
+        else:
+            pyautogui.press(key)
+            time.sleep(0.05)
+        return f"Pressed: '{key}'"
+    except Exception as e:
+        return f"Error pressing key: {e}"
 
 
 def click_action(x: int, y: int) -> str:
@@ -60,9 +58,12 @@ def click_action(x: int, y: int) -> str:
     Last-resort mouse click. Only used when NO keyboard alternative exists.
     ARIA is instructed to avoid this action whenever possible.
     """
-    pyautogui.moveTo(x, y, duration=0.15)
-    pyautogui.click()
-    return f"Clicked at ({x}, {y})"
+    try:
+        pyautogui.moveTo(x, y, duration=0.15)
+        pyautogui.click()
+        return f"Clicked at ({x}, {y})"
+    except Exception as e:
+        return f"Error clicking: {e}"
 
 
 def scroll_action(amount: int) -> str:
@@ -75,42 +76,39 @@ def scroll_action(amount: int) -> str:
 # KEYBOARD-FIRST HIGH-LEVEL ACTIONS
 # ---------------------------------------------------------------------------
 
+def _windows_search(query: str) -> str:
+    """Helper to open apps/urls via Windows Search."""
+    try:
+        pyautogui.press('win')
+        time.sleep(0.8)          # Wait for Search menu to appear
+        type_action(query)
+        time.sleep(0.5)          # Wait for search results
+        pyautogui.press('enter')
+        return f"Windows Search executed for: {query}"
+    except Exception as e:
+        return f"Error executing Windows Search: {e}"
+
+
 def open_app(app_name: str) -> str:
     """
     Opens an app or website using Windows Search.
-    - Presses Win key, waits for search menu, types the target, and presses Enter.
     """
     app_lower = app_name.lower().strip()
     target = BROWSER_APP_MAP.get(app_lower)
 
     if target:
-        # Open URL in default browser via Windows Search
-        pyautogui.press('win')
-        time.sleep(0.8)          # Wait for Search menu to appear
-        type_action(target)
-        time.sleep(0.5)          # Wait for search results
-        pyautogui.press('enter')
+        _windows_search(target)
         return f"Opened browser to: {target}"
     else:
-        # Unknown app — open via Windows Search with the app name
-        pyautogui.press('win')
-        time.sleep(0.8)
-        type_action(app_name)
-        time.sleep(0.5)
-        pyautogui.press('enter')
+        _windows_search(app_name)
         return f"Launched via Search: {app_name}"
 
 
 def navigate_browser(url: str) -> str:
     """
     Navigates to a URL by using the Windows Search.
-    This ensures the default browser opens it even if not currently focused.
     """
-    pyautogui.press('win')
-    time.sleep(0.8)
-    type_action(url)
-    time.sleep(0.5)
-    pyautogui.press('enter')
+    _windows_search(url)
     return f"Navigated to: {url}"
 
 

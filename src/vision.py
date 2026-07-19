@@ -4,8 +4,7 @@ import time
 from src.screenshot import capture_screen_base64
 from src.logger import logger
 
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-VISION_MODEL   = "moondream"
+from src.config import OLLAMA_API_URL, VISION_MODEL
 
 # ---------------------------------------------------------------------------
 # CORE VISTA CALL

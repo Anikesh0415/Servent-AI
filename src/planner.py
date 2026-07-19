@@ -155,15 +155,18 @@ class MultiStagePlanner:
             return [raw_data]
 
         if isinstance(raw_data, str):
-            raw_text = raw_data.strip()
-            start_idx = raw_text.find('[')
-            end_idx = raw_text.rfind(']')
-            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                try:
-                    return json.loads(raw_text[start_idx:end_idx+1])
-                except Exception:
-                    pass
+            from src.utils.json_parser import parse_json_from_text
+            parsed = parse_json_from_text(raw_data)
+            if parsed is not None:
+                if isinstance(parsed, list):
+                    return parsed
+                if isinstance(parsed, dict):
+                    for key in ["steps", "plan", "actions", "task_steps"]:
+                        if key in parsed and isinstance(parsed[key], list):
+                            return parsed[key]
+                    return [parsed]
         
+        logger.error(f"[Planner] Failed to extract action plan from LLM output. Returning unknown step.")
         return [{"action": "unknown", "target": str(raw_data)}]
 
 # Global Singleton & Backward Compatibility Function

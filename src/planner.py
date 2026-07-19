@@ -76,7 +76,17 @@ class MultiStagePlanner:
         """Stage 2 & 3: Generates executable JSON action steps with confidence scores."""
         # First decompose
         decomp = self.decompose_intent(instruction, context_summary)
-        sub_goals_str = ", ".join(decomp.get("sub_goals", [instruction]))
+        
+        sub_goals_raw = decomp.get("sub_goals", [instruction])
+        sub_goals_list = []
+        for sg in sub_goals_raw:
+            if isinstance(sg, dict):
+                # If LLM returns a dict (e.g. {"goal": "do X"}), extract the first value
+                val = next(iter(sg.values())) if sg else ""
+                sub_goals_list.append(str(val))
+            else:
+                sub_goals_list.append(str(sg))
+        sub_goals_str = ", ".join(sub_goals_list)
         
         full_prompt = (
             f"{PLANNER_SYSTEM_PROMPT}\n\n"

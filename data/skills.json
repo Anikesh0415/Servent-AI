@@ -7,7 +7,7 @@
             "send to"
         ],
         "description": "Sending a message to a specific contact on WhatsApp",
-        "example_sequence": "When asked to send a message on WhatsApp, you MUST generate this exact sequence:\n1. {\"action\": \"open_app\", \"name\": \"WhatsApp\"}\n2. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+f\"}\n3. {\"action\": \"type_text\", \"text\": \"<Contact Name>\"}\n4. {\"action\": \"wait_until\", \"condition\": \"search results load\"}\n5. {\"action\": \"key_shortcut\", \"keys\": \"tab\"}\n6. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}\n7. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+v\"}\n8. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}"
+        "example_sequence": "When asked to send a message on WhatsApp, you MUST generate this exact sequence:\n1. {\"action\": \"open_app\", \"name\": \"WhatsApp\"}\n2. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+f\"}\n3. {\"action\": \"type_text\", \"text\": \"<Contact Name>\"}\n4. {\"action\": \"wait_until\", \"condition\": \"search results load\"}\n5. {\"action\": \"key_shortcut\", \"keys\": \"down\"}\n6. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}\n7. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+v\"}\n8. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}"
     },
     {
         "keywords": [
@@ -17,7 +17,7 @@
             "ask gemini"
         ],
         "description": "Asking Gemini to write text and copying it",
-        "example_sequence": "When asked to use Gemini to generate text, generate this sequence:\n1. {\"action\": \"open_browser\", \"url\": \"https://gemini.google.com\"}\n2. {\"action\": \"wait_until\", \"condition\": \"Gemini loads\"}\n3. {\"action\": \"type_text\", \"text\": \"<Prompt for Gemini>\"}\n4. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}\n5. {\"action\": \"wait_until\", \"condition\": \"Gemini finishes generating response\"}\n6. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+c\"}"
+        "example_sequence": "When asked to use Gemini to generate text, generate this sequence:\n1. {\"action\": \"open_browser\", \"url\": \"https://gemini.google.com\"}\n2. {\"action\": \"wait_until\", \"condition\": \"Gemini loads\"}\n3. {\"action\": \"type_text\", \"text\": \"<Prompt for Gemini>\"}\n4. {\"action\": \"key_shortcut\", \"keys\": \"enter\"}\n5. {\"action\": \"wait_until\", \"condition\": \"Gemini finishes generating response\"}\n6. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+a\"}\n7. {\"action\": \"key_shortcut\", \"keys\": \"ctrl+c\"}"
     },
     {
         "keywords": [

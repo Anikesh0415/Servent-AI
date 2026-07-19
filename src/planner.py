@@ -27,17 +27,19 @@ STEP TYPES AVAILABLE:
 - scroll: {"action": "scroll", "direction": "down", "amount": 3}
 - speak: {"action": "speak", "text": "what to say to user"}
 
-OUTPUT FORMAT (strict JSON array starting with [ and ending with ]):
-[
-  {
-    "id": 1, 
-    "action": "open_browser", 
-    "url": "https://gemini.google.com", 
-    "description": "Open Gemini",
-    "anchor_check": "Gemini homepage or chat interface visible",
-    "confidence": 0.95
-  }
-]
+OUTPUT FORMAT (strict JSON object containing a 'steps' array):
+{
+  "steps": [
+    {
+      "id": 1, 
+      "action": "open_browser", 
+      "url": "https://gemini.google.com", 
+      "description": "Open Gemini",
+      "anchor_check": "Gemini homepage or chat interface visible",
+      "confidence": 0.95
+    }
+  ]
+}
 """
 
 class MultiStagePlanner:

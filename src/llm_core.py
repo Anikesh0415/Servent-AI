@@ -56,7 +56,8 @@ class LocalLLMCore:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.0,
-            "stream": False
+            "stream": False,
+            "response_format": {"type": "json_object"}
         }
         response = requests.post(self.lm_studio_url, headers=headers, json=data, timeout=120)
         response.raise_for_status()
@@ -69,6 +70,7 @@ class LocalLLMCore:
             "model": self.ollama_model,
             "prompt": user_prompt,
             "stream": False,
+            "format": "json",
             "options": {
                 "temperature": 0.0
             }
@@ -99,6 +101,9 @@ class LocalLLMCore:
             try:
                 parsed = json.loads(json_str)
                 if isinstance(parsed, dict):
+                    # If it's an object, check if it wrapped the array in a 'steps' key
+                    if "steps" in parsed and isinstance(parsed["steps"], list):
+                        return parsed["steps"]
                     return [parsed]
                 return parsed
             except Exception:

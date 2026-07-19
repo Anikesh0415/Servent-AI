@@ -2,7 +2,7 @@ import time
 from src.executors.base_executor import BaseExecutor
 from src.action_library import (
     type_action, key_action, click_action, scroll_action,
-    open_app, navigate_browser, copy_all, paste_action
+    open_app, navigate_browser, copy_all, paste_action, semantic_copy
 )
 from src.vision import smart_wait_for_completion
 
@@ -17,7 +17,8 @@ class PyAutoGUIExecutor(BaseExecutor):
     def can_handle(self, action_type: str, step_data: dict) -> bool:
         supported = [
             "open_app", "open_browser", "type_text", "key_shortcut",
-            "scroll", "click_element", "copy_all", "paste", "speak", "wait_until"
+            "scroll", "click_element", "copy_all", "paste", "speak", "wait_until",
+            "semantic_copy", "click_text"
         ]
         return action_type.lower() in supported
 
@@ -83,6 +84,35 @@ class PyAutoGUIExecutor(BaseExecutor):
                     return True, f"Wait condition met: '{condition}'"
                 else:
                     return False, f"Wait condition timed out: '{condition}'"
+
+            elif action_type == "semantic_copy":
+                goal = step_data.get("goal") or step_data.get("text", "")
+                msg = semantic_copy(goal)
+                return True, msg
+
+            elif action_type == "click_text":
+                target_text = step_data.get("text", "")
+                try:
+                    import pytesseract
+                    from pytesseract import Output
+                    from PIL import ImageGrab
+                    import pyautogui
+                    img = ImageGrab.grab()
+                    data = pytesseract.image_to_data(img, output_type=Output.DICT)
+                    clicked = False
+                    for i in range(len(data['text'])):
+                        if target_text.lower() in data['text'][i].lower():
+                            x = data['left'][i] + data['width'][i] / 2
+                            y = data['top'][i] + data['height'][i] / 2
+                            pyautogui.click(x, y)
+                            clicked = True
+                            break
+                    if clicked:
+                        return True, f"OCR clicked text: '{target_text}'"
+                    else:
+                        return False, f"OCR failed to find text: '{target_text}'"
+                except Exception as e:
+                    return False, f"OCR click error: {e}"
 
             return False, f"Unknown action: '{action_type}'"
 

@@ -33,10 +33,14 @@ def type_action(text: str) -> str:
     """
     Types text using clipboard paste for speed and reliability.
     Avoids key-by-key typing which drops characters at high speed.
+    Preserves the original clipboard contents.
     """
+    original_clipboard = pyperclip.paste()
     pyperclip.copy(text)
     time.sleep(0.05)
     _hotkey('ctrl', 'v')
+    time.sleep(0.05)
+    pyperclip.copy(original_clipboard)
     return f"Typed: '{text}'"
 
 

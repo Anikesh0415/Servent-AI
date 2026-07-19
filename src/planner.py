@@ -14,7 +14,8 @@ CRITICAL RULES — NEVER VIOLATE:
 
 BEHAVIORAL GUIDELINES:
 - To submit web forms or chat prompts (like Gemini/ChatGPT), prefer using `key_shortcut` with "enter" instead of `click_element` on the submit button.
-- In chat apps (like WhatsApp), ALWAYS explicitly search for the contact first (e.g. click search, type name, press enter) BEFORE pasting or typing messages.
+- In chat apps (like WhatsApp), ALWAYS explicitly search for the contact first BEFORE pasting or typing messages.
+- Specifically in WhatsApp, to search for a contact, you MUST use `key_shortcut` with "ctrl+f" instead of `click_element` on the search bar.
 
 STEP TYPES AVAILABLE:
 - open_browser: {"action": "open_browser", "url": "https://..."}

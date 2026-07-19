@@ -65,9 +65,7 @@ class LocalLLMCore:
             "stream": False
         }
         
-        # Only enforce JSON grammar if the prompt asks for it
-        if "JSON" in system_prompt.upper() or "JSON" in user_prompt.upper():
-            data["response_format"] = {"type": "json_object"}
+        # We removed response_format as it causes 400 Bad Request on some LM Studio models
             
         response = requests.post(self.lm_studio_url, headers=headers, json=data, timeout=120)
         response.raise_for_status()
@@ -93,7 +91,8 @@ class LocalLLMCore:
         if "JSON" in user_prompt.upper():
             data["format"] = "json"
             
-        response = requests.post(self.ollama_url, json=data, timeout=15)
+        # Increased timeout to 120s to prevent broken pipe during long generations
+        response = requests.post(self.ollama_url, json=data, timeout=120)
         response.raise_for_status()
         result_text = response.json().get("response", "").strip()
         

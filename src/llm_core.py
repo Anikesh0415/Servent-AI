@@ -6,8 +6,9 @@ class LocalLLMCore:
         self.use_mock = use_mock
         # Local endpoints
         self.lm_studio_url = "http://localhost:1234/v1/chat/completions"
+        self.lm_studio_models_url = "http://localhost:1234/v1/models"
         self.ollama_url = "http://localhost:11434/api/generate"
-        self.ollama_model = "qwen2.5:3b"
+        self.ollama_model = "qwen2.5:1.5b"
 
     def process_intent(self, prompt, payload):
         if self.use_mock:
@@ -31,6 +32,19 @@ class LocalLLMCore:
 
     def _call_lm_studio(self, prompt, payload):
         headers = {"Content-Type": "application/json"}
+        
+        # Dynamically detect active model in LM Studio
+        model_name = "lmstudio-community/gemma-4-E4B-it-GGUF"
+        try:
+            models_res = requests.get(self.lm_studio_models_url, timeout=2)
+            if models_res.status_code == 200:
+                models_data = models_res.json().get("data", [])
+                if models_data and len(models_data) > 0:
+                    model_name = models_data[0].get("id", model_name)
+                    print(f"[LocalLLMCore] Detected active LM Studio model: '{model_name}'")
+        except Exception:
+            pass
+
         system_prompt = (
             "You are the Action Intelligence Framework, a local OS agent.\n"
             "Convert user commands into a valid JSON array of actions.\n"
@@ -39,7 +53,7 @@ class LocalLLMCore:
         user_prompt = prompt if prompt else f"Process user command: {payload.get('voice_command', '') if payload else ''}"
 
         data = {
-            "model": "lmstudio-community/gemma-4-E4B-it-GGUF",
+            "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

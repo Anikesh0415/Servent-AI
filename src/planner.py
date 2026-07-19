@@ -12,6 +12,10 @@ CRITICAL RULES — NEVER VIOLATE:
 3. Each step must be a specific executable action, not a summary.
 4. Include confidence scores (0.0 to 1.0) and expected pre/post conditions for verification.
 
+BEHAVIORAL GUIDELINES:
+- To submit web forms or chat prompts (like Gemini/ChatGPT), prefer using `key_shortcut` with "enter" instead of `click_element` on the submit button.
+- In chat apps (like WhatsApp), ALWAYS explicitly search for the contact first (e.g. click search, type name, press enter) BEFORE pasting or typing messages.
+
 STEP TYPES AVAILABLE:
 - open_browser: {"action": "open_browser", "url": "https://..."}
 - click_element: {"action": "click_element", "target": "description of element"}

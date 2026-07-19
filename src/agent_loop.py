@@ -82,6 +82,20 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
         if not pre_res["clear_to_proceed"]:
             notify(f"⚠️ Preflight Warning: {pre_res['popup_description']}")
 
+        # ── 1.5. SAFETY GUARDRAIL ───────────────────────────────────────────
+        def is_safe_action(action: str, tgt: str) -> bool:
+            if action in ["type_text", "key_shortcut"]:
+                blacklist = ["del ", "format ", "rmdir", "rd /s", "powershell -enc", "reg add", "net user", "drop table"]
+                if any(bad in tgt.lower() for bad in blacklist):
+                    return False
+            return True
+            
+        if not is_safe_action(action_type, target):
+            notify(f"🛑 SECURITY ALERT: Blocked destructive action '{target}'")
+            memory_mgr.log_action(action_type, str(target), "Blocked by Safety Guardrail", False)
+            memory_mgr.complete_task(success=False)
+            return False
+
         # ── 2. EXECUTE ──────────────────────────────────────────────────────
         try:
             success, exec_msg = exec_mgr.execute_step(step)

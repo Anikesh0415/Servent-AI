@@ -57,6 +57,17 @@ class MultiStagePlanner:
         """Stage 1: Analyzes user intent and decomposes into logical sub-goals."""
         logger.info(f"Decomposing intent for: '{instruction}'")
         
+        # 0. Safety Guardrail: Vague Intent Catching
+        vague_keywords = ["make it better", "do that thing", "fix the errors", "do it again"]
+        if len(instruction.split()) <= 6 and not any(app in instruction.lower() for app in ["app", "website", "mail", "whatsapp", "browser", "chrome", "desktop"]):
+            if any(kw in instruction.lower() for kw in vague_keywords) or len(instruction.split()) <= 3:
+                logger.warning("Vague intent detected. Requesting clarification.")
+                return {
+                    "intent": "Clarify ambiguous request",
+                    "apps": [],
+                    "sub_goals": [{"action": "speak", "text": "I'm not sure exactly what you mean. Could you clarify what you would like me to do?"}]
+                }
+        
         prompt = (
             f"User Command: {instruction}\n"
             f"Current System Context: {context_summary}\n"
@@ -93,6 +104,11 @@ class MultiStagePlanner:
         decomp = self.decompose_intent(instruction, context_summary)
         
         sub_goals_raw = decomp.get("sub_goals", [instruction])
+        
+        # If the intent decomposition already generated a hardcoded action plan (e.g. clarification)
+        if sub_goals_raw and isinstance(sub_goals_raw[0], dict) and sub_goals_raw[0].get("action") == "speak":
+            return sub_goals_raw
+
         sub_goals_list = []
         for sg in sub_goals_raw:
             if isinstance(sg, dict):

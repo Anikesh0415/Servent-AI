@@ -1,75 +1,16 @@
 import json
 import re
 import requests
+from src.llm_core import LocalLLMCore
+from src.logger import logger
 
-
-# ---------------------------------------------------------------------------
-# RESILIENT JSON PARSING HELPERS
-# ---------------------------------------------------------------------------
-
-def clean_and_parse_json(raw_text: str):
-    """Aggressively finds and parses the first JSON array in the text."""
-    raw_text = raw_text.strip()
-    
-    # Try to find the outermost array bounds
-    start_idx = raw_text.find('[')
-    end_idx = raw_text.rfind(']')
-    
-    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-        json_str = raw_text[start_idx:end_idx+1]
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass # Fall back to full text parse
-
-    # Strip opening fence (e.g. ```json or ```)
-    if raw_text.startswith("```"):
-        raw_text = raw_text.split("\n", 1)[-1]
-    # Strip closing fence
-    if raw_text.endswith("```"):
-        raw_text = raw_text.rsplit("\n", 1)[0]
-        
-    return json.loads(raw_text.strip())
-
-
-def extract_steps(parsed_data) -> list:
-    """
-    Self-healing converter: accepts a list or a dict wrapper and always
-    returns a flat list of action steps.
-    """
-    if isinstance(parsed_data, list):
-        return parsed_data
-
-    if isinstance(parsed_data, dict):
-        # Heuristic 1: look for common wrapper keys
-        for key in ["steps", "plan", "actions", "task_steps", "sequence"]:
-            if key in parsed_data and isinstance(parsed_data[key], list):
-                print(f"[ARIA Parser] Extracted steps from dict key: '{key}'")
-                return parsed_data[key]
-
-        # Heuristic 2: single-step dict — wrap it in a list
-        if "action" in parsed_data or "type" in parsed_data or "description" in parsed_data:
-            print("[ARIA Parser] Wrapped single-action dict into list.")
-            return [parsed_data]
-
-    raise ValueError(f"Could not extract a valid steps list from: {type(parsed_data)}")
-
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-
-# Phase 1: Upgraded to Qwen 14B for maximum reasoning (Heavy but extremely accurate)
-PLANNER_MODEL = "qwen2.5:14b"
-
-# ---------------------------------------------------------------------------
-# ARIA SYSTEM PROMPT
-# ---------------------------------------------------------------------------
 PLANNER_SYSTEM_PROMPT = """You are ARIA, an autonomous AI controlling a Windows 11 computer.
 
 CRITICAL RULES — NEVER VIOLATE:
-1. You MUST output ONLY valid JSON, nothing else
-2. You MUST include EVERY single step — never skip any
-3. For tasks involving multiple apps, expect 8–15+ steps
-4. NEVER output fewer than 5 steps for any command with 'and', 'then', 'copy', 'send', 'open'
-5. Each step must be a specific executable action, not a summary
+1. You MUST output ONLY valid JSON, nothing else.
+2. You MUST include EVERY single step — never skip any.
+3. Each step must be a specific executable action, not a summary.
+4. Include confidence scores (0.0 to 1.0) and expected pre/post conditions for verification.
 
 STEP TYPES AVAILABLE:
 - open_browser: {"action": "open_browser", "url": "https://..."}
@@ -81,75 +22,140 @@ STEP TYPES AVAILABLE:
 - scroll: {"action": "scroll", "direction": "down", "amount": 3}
 - speak: {"action": "speak", "text": "what to say to user"}
 
-OUTPUT FORMAT (strict JSON array - you MUST start with [ and end with ]):
+OUTPUT FORMAT (strict JSON array starting with [ and ending with ]):
 [
-  {"id": 1, "action": "...", "description": "why this step", ...params}
+  {
+    "id": 1, 
+    "action": "open_browser", 
+    "url": "https://gemini.google.com", 
+    "description": "Open Gemini",
+    "anchor_check": "Gemini homepage or chat interface visible",
+    "confidence": 0.95
+  }
 ]
+"""
 
-EXAMPLE — 'Open Gemini, write a letter, send via WhatsApp':
-[
-  {"id": 1, "action": "open_browser", "url": "https://gemini.google.com", "description": "Open Gemini"},
-  {"id": 2, "action": "wait_until", "condition": "Gemini chat interface loaded with text input visible"},
-  {"id": 3, "action": "click_element", "target": "Ask Gemini text input box"},
-  {"id": 4, "action": "type_text", "text": "Write a formal letter from Anikesh to Balram asking how Balram is doing"},
-  {"id": 5, "action": "key_shortcut", "keys": "enter"},
-  {"id": 6, "action": "wait_until", "condition": "Gemini response has fully loaded, no loading indicator visible"},
-  {"id": 7, "action": "key_shortcut", "keys": "ctrl+a", "description": "Select all response text"},
-  {"id": 8, "action": "key_shortcut", "keys": "ctrl+c", "description": "Copy the letter"},
-  {"id": 9, "action": "open_app", "name": "WhatsApp"},
-  {"id": 10, "action": "wait_until", "condition": "WhatsApp main window visible with chat list"},
-  {"id": 11, "action": "click_element", "target": "search contacts box"},
-  {"id": 12, "action": "type_text", "text": "Balram"},
-  {"id": 13, "action": "click_element", "target": "Balram in search results"},
-  {"id": 14, "action": "click_element", "target": "message input box"},
-  {"id": 15, "action": "key_shortcut", "keys": "ctrl+v"},
-  {"id": 16, "action": "key_shortcut", "keys": "enter"},
-  {"id": 17, "action": "speak", "text": "Letter sent to Balram successfully"}
-]
-
-DO NOT output anything other than the JSON object."""
-
-
-def generate_plan(instruction: str) -> list:
+class MultiStagePlanner:
     """
-    Calls LocalLLMCore to generate a structured action plan using the active local LLM backend.
-    Uses clean_and_parse_json + extract_steps for bulletproof parsing.
+    Production Multi-Stage Planner for Servent-AI.
+    Pipeline: Intent Decomposition -> Sub-goal Mapping -> Task Plan Generation -> Action Plan JSON -> Replanning Engine.
     """
-    from src.llm_core import LocalLLMCore
-    core = LocalLLMCore(use_mock=False)
-    
-    prompt = f"User Request: {instruction}\nOutput the JSON action plan now."
-    payload = {
-        "voice_command": instruction,
-        "gesture_context": {}
-    }
+    def __init__(self):
+        self.core = LocalLLMCore(use_mock=False)
 
-    result_text = ""
-    try:
-        # Wrap system prompt if needed
-        # LocalLLMCore will check LM Studio, then fallback to Ollama
-        # We can construct the full instructions here
-        full_prompt = f"{PLANNER_SYSTEM_PROMPT}\n\n{prompt}"
+    def decompose_intent(self, instruction: str, context_summary: str = "") -> dict:
+        """Stage 1: Analyzes user intent and decomposes into logical sub-goals."""
+        logger.info(f"Decomposing intent for: '{instruction}'")
         
-        # We call the process_intent endpoint which handles endpoint fallback
-        results = core.process_intent(full_prompt, payload)
+        prompt = (
+            f"User Command: {instruction}\n"
+            f"Current System Context: {context_summary}\n"
+            "Break down this request into:\n"
+            "1. Primary Intent\n"
+            "2. Required Apps/Websites\n"
+            "3. Sub-goals sequence\n"
+            "Output JSON format: {\"intent\": \"...\", \"apps\": [...], \"sub_goals\": [...]}"
+        )
         
-        # If results is already a parsed list, return it
-        if isinstance(results, list):
-            return results
+        try:
+            res = self.core.process_intent(prompt, {"voice_command": instruction})
+            if isinstance(res, dict):
+                return res
+            if isinstance(res, list) and len(res) > 0 and isinstance(res[0], dict):
+                return res[0]
+        except Exception as e:
+            logger.warning(f"Intent decomposition fallback ({e})")
             
-        # Otherwise, clean and parse the returned text/object
-        if isinstance(results, str):
-            parsed = clean_and_parse_json(results)
-            return extract_steps(parsed)
-            
-        return extract_steps(results)
+        return {
+            "intent": instruction,
+            "apps": [],
+            "sub_goals": [instruction]
+        }
 
-    except Exception as e:
-        print(f"[ARIA Planner Error] {e}")
-        return []
+    def generate_action_plan(self, instruction: str, context_summary: str = "") -> list:
+        """Stage 2 & 3: Generates executable JSON action steps with confidence scores."""
+        # First decompose
+        decomp = self.decompose_intent(instruction, context_summary)
+        sub_goals_str = ", ".join(decomp.get("sub_goals", [instruction]))
+        
+        full_prompt = (
+            f"{PLANNER_SYSTEM_PROMPT}\n\n"
+            f"Context: {context_summary}\n"
+            f"Target Sub-Goals: {sub_goals_str}\n"
+            f"User Command: {instruction}\n"
+            "Output the JSON action plan array now:"
+        )
+        
+        logger.info(f"Generating action plan for sub-goals: {sub_goals_str}")
+        
+        raw_results = self.core.process_intent(full_prompt, {"voice_command": instruction})
+        plan = self._clean_and_extract(raw_results)
+
+        # Ensure confidence scores exist
+        for step in plan:
+            if "confidence" not in step:
+                step["confidence"] = 0.90
+            if "anchor_check" not in step and "target" in step:
+                step["anchor_check"] = f"Visible element: {step['target']}"
+
+        logger.info(f"Plan generated successfully with {len(plan)} steps.")
+        return plan
+
+    def replan_failed_step(self, failed_step: dict, error_reason: str, context_summary: str = "") -> list:
+        """Stage 4: Active Replanning Engine when execution or visual verification fails."""
+        logger.warning(f"Replanning for failed step {failed_step.get('id', '?')}: {failed_step.get('action')} ({error_reason})")
+        
+        prompt = (
+            f"{PLANNER_SYSTEM_PROMPT}\n\n"
+            f"REPLANNING REQUIRED!\n"
+            f"The following step failed during execution:\n"
+            f"Failed Step: {json.dumps(failed_step)}\n"
+            f"Failure Reason: {error_reason}\n"
+            f"Current OS Context: {context_summary}\n"
+            "Provide an alternative 1-3 step JSON action recovery sequence to bypass this error and resume the task:"
+        )
+        
+        raw_results = self.core.process_intent(prompt, {"voice_command": f"Fix failed step {failed_step.get('action')}"})
+        recovery_plan = self._clean_and_extract(raw_results)
+        
+        logger.info(f"Recovery plan generated: {len(recovery_plan)} alternative step(s).")
+        return recovery_plan
+
+    def _clean_and_extract(self, raw_data) -> list:
+        """Parses and sanitizes LLM output into a clean list of dict steps."""
+        if isinstance(raw_data, list):
+            return raw_data
+        
+        if isinstance(raw_data, dict):
+            for key in ["steps", "plan", "actions", "task_steps"]:
+                if key in raw_data and isinstance(raw_data[key], list):
+                    return raw_data[key]
+            return [raw_data]
+
+        if isinstance(raw_data, str):
+            raw_text = raw_data.strip()
+            start_idx = raw_text.find('[')
+            end_idx = raw_text.rfind(']')
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                try:
+                    return json.loads(raw_text[start_idx:end_idx+1])
+                except Exception:
+                    pass
+        
+        return [{"action": "unknown", "target": str(raw_data)}]
+
+# Global Singleton & Backward Compatibility Function
+planner_instance = MultiStagePlanner()
+
+def generate_plan(instruction: str, context_summary: str = "") -> list:
+    """Backward compatible entry point for ARIA planner."""
+    return planner_instance.generate_action_plan(instruction, context_summary)
+
+def replan_failed_step(failed_step: dict, error_reason: str, context_summary: str = "") -> list:
+    """Backward compatible entry point for replanning."""
+    return planner_instance.replan_failed_step(failed_step, error_reason, context_summary)
 
 
 if __name__ == "__main__":
-    plan = generate_plan("open notepad and type hello world")
-    print(f"Generated Plan:\n{json.dumps(plan, indent=2)}")
+    p = MultiStagePlanner()
+    print("Decomposition Test:", p.decompose_intent("Open Gemini and write a letter"))

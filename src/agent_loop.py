@@ -1,200 +1,162 @@
 import time
-from src.planner import generate_plan
-from src.action_library import (
-    open_app, navigate_browser,
-    type_action, key_action,
-    click_action, scroll_action,
-    copy_all, paste_action,
-)
-from src.vision import verify_anchor, smart_wait_for_completion
+from src.planner import generate_plan, replan_failed_step, planner_instance
+from src.vision import verify_anchor, smart_wait_for_completion, preflight_check
+from src.context_manager import ContextManager
+from src.memory_manager import MemoryManager
+from src.execution_manager import ExecutionManager
+from src.logger import logger
 
-# How long to wait after open_app before starting verification
-APP_OPEN_WAIT  = 3.0   # seconds — enough for a browser tab to appear
-# How long to wait after any instant action before the next step
-ACTION_PAUSE   = 0.3   # seconds
-
-# For open_app, VISTA will retry verification up to this many times
-OPEN_APP_MAX_RETRIES = 3
+# Configuration Constants
+ACTION_PAUSE         = 0.5   # seconds after standard actions
+APP_OPEN_WAIT        = 2.0   # seconds before first anchor check on app open
+OPEN_APP_MAX_RETRIES = 3     # retry count for page/app load anchors
 OPEN_APP_RETRY_DELAY = 2.0   # seconds between retries
+
+context_mgr = ContextManager()
+memory_mgr  = MemoryManager()
+exec_mgr    = ExecutionManager()
 
 
 def plan_task(instruction: str, update_callback=None) -> list:
     """
-    Generates the ARIA plan for the instruction, checks for complex keywords,
-    and returns the plan list.
+    Generates the ARIA plan using multi-stage planning and OS context.
     """
     def notify(msg: str):
-        print(f"[Agent Planner] {msg}")
+        logger.info(f"[Agent Planner] {msg}")
         if update_callback:
             update_callback(msg)
 
-    notify(f"Thinking about: '{instruction}'...")
+    notify(f"Analyzing instruction: '{instruction}'...")
 
-    # Generate plan
-    plan = generate_plan(instruction)
+    # Get active OS context summary for planner
+    ctx_summary = context_mgr.get_summary_prompt_context()
+    plan = planner_instance.generate_action_plan(instruction, ctx_summary)
 
-    # CRITICAL CHECK: re-plan if too few steps
+    # Re-plan if too few steps for complex requests
     complex_kw = ["and", "then", "copy", "send", "open", "paste"]
     is_complex = any(kw in instruction.lower() for kw in complex_kw)
     
     if plan and is_complex and len(plan) < 4:
         notify(f"⚠️ Only {len(plan)} steps generated for complex task — re-planning stricter...")
-        plan = generate_plan(instruction + " [IMPORTANT: This requires multiple apps/actions, list ALL steps]")
+        plan = planner_instance.generate_action_plan(
+            instruction + " [IMPORTANT: This requires multiple apps/actions, list ALL steps]",
+            ctx_summary
+        )
 
     if not plan:
         notify("ARIA failed to generate a plan.")
         return []
 
+    # Store plan in memory
+    memory_mgr.initialize_task(instruction, plan)
+
     notify(f"ARIA plan generated: {len(plan)} step(s).")
     return plan
 
 
-def execute_task_plan(plan: list, update_callback=None):
+def execute_task_plan(plan: list, update_callback=None) -> bool:
     """
-    Executes the generated ARIA plan and performs anchor verification.
+    Executes the generated ARIA plan using the Observe -> Execute -> Verify -> Reflect -> Replan loop.
     """
     def notify(msg: str):
-        print(f"[Agent Loop] {msg}")
+        logger.info(f"[Agent Loop] {msg}")
         if update_callback:
             update_callback(msg)
 
     if not plan:
         notify("No plan to execute.")
-        return
+        return False
 
     notify(f"Starting execution of {len(plan)} step(s)...")
 
     for idx, step in enumerate(plan):
         action_type  = step.get("action", "").lower()
-        anchor_check = step.get("anchor_check", "")   # Phase 4 anchor
+        target       = step.get("target") or step.get("name") or step.get("url") or ""
+        anchor_check = step.get("anchor_check", "")
 
-        notify(f"Step {idx+1}/{len(plan)}: {action_type}")
+        memory_mgr.update_task_step(idx, status="executing")
+        notify(f"Step {idx+1}/{len(plan)}: {action_type} ({target})")
 
-        # ── ACT ────────────────────────────────────────────────────────────
-        try:
-            if action_type == "open_app":
-                open_app(step.get("name", step.get("app", "")))
+        # ── 1. OBSERVE & PREFLIGHT ──────────────────────────────────────────
+        pre_res = preflight_check(target)
+        if not pre_res["clear_to_proceed"]:
+            notify(f"⚠️ Preflight Warning: {pre_res['popup_description']}")
 
-            elif action_type == "open_browser":
-                navigate_browser(step.get("url", ""))
+        # ── 2. EXECUTE ──────────────────────────────────────────────────────
+        success, exec_msg = exec_mgr.execute_step(step)
+        if not success:
+            notify(f"Action execution warning: {exec_msg}")
 
-            elif action_type == "type_text":
-                type_action(step.get("text", ""))
-
-            elif action_type == "key_shortcut":
-                key_action(step.get("keys", step.get("key", "")))
-
-            elif action_type == "click_element":
-                # For now just mock it until vision is fully hooked up
-                notify(f"Clicking element: {step.get('target', '')}")
-
-            elif action_type == "scroll":
-                scroll_action(step.get("amount", 0))
-
-            elif action_type == "copy_all":
-                copy_all()
-
-            elif action_type == "paste":
-                paste_action()
-
-            elif action_type == "wait_until":
-                condition = step.get("condition", "")
-                if condition:
-                    notify(f"Waiting for condition: '{condition}'...")
-                    success = smart_wait_for_completion(condition)
-                    if not success:
-                        notify(f"Wait timeout for: {condition}")
-                        return
-                    continue # Skip anchor verify since wait handles it
-
-            elif action_type == "speak":
-                text = step.get("text", "")
-                notify(f"Speaking: {text}")
-                try:
-                    import pyttsx3
-                    engine = pyttsx3.init()
-                    engine.say(text)
-                    engine.runAndWait()
-                except Exception:
-                    pass
-
-            else:
-                notify(f"Unknown action '{action_type}' — skipping.")
-                continue
-
-        except Exception as e:
-            notify(f"Action raised an exception: {e}")
-            continue
-
-        # ── VERIFY (Phase 4: anchor-based) ─────────────────────────────────
-
-        # Actions that need no verification — they are instant and deterministic
-        NO_VERIFY = {"scroll", "copy_all", "paste", "click", "speak", "wait_until"}
+        # ── 3. VERIFY ───────────────────────────────────────────────────────
+        NO_VERIFY = {"scroll", "copy_all", "paste", "speak", "wait_until"}
         if action_type in NO_VERIFY or not anchor_check:
             time.sleep(ACTION_PAUSE)
+            memory_mgr.log_action(action_type, str(target), exec_msg, True, "No verification needed")
             continue
 
-        # For page-loading actions: give the OS a head-start before asking VISTA
         if action_type in {"open_app", "open_browser"}:
             notify(f"Waiting {APP_OPEN_WAIT}s for page/app to load...")
             time.sleep(APP_OPEN_WAIT)
             max_retries = OPEN_APP_MAX_RETRIES
         else:
-            # For type / key: short pause, single check
             time.sleep(ACTION_PAUSE)
             max_retries = 1
 
-        # Run anchor verification
         verified = False
         
         for attempt in range(max_retries):
             notify(f"VISTA anchor check (attempt {attempt+1}/{max_retries}): '{anchor_check}'")
             if verify_anchor(anchor_check):
-                notify(f"Anchor confirmed ✓")
+                notify("Anchor confirmed ✓")
                 verified = True
+                memory_mgr.log_action(action_type, str(target), exec_msg, True, "Anchor confirmed")
                 break
             else:
                 if attempt < max_retries - 1:
                     notify(f"Anchor not yet visible, retrying in {OPEN_APP_RETRY_DELAY}s...")
                     time.sleep(OPEN_APP_RETRY_DELAY)
-                    
-                    # Re-execute action on retry
-                    notify(f"Re-executing action: {action_type}")
-                    try:
-                        if action_type == "open_app":
-                            open_app(step.get("name", step.get("app", "")))
-                        elif action_type == "open_browser":
-                            navigate_browser(step.get("url", ""))
-                        elif action_type == "type_text":
-                            type_action(step.get("text", ""))
-                        elif action_type == "key_shortcut":
-                            key_action(step.get("keys", step.get("key", "")))
-                        elif action_type == "click_element":
-                            notify(f"Clicking element: {step.get('target', '')}")
-                        elif action_type == "scroll":
-                            scroll_action(step.get("amount", 0))
-                    except Exception as e:
-                        notify(f"Retry execution failed: {e}")
+                    exec_mgr.execute_step(step)
 
+        # ── 4. REFLECT & REPLAN ─────────────────────────────────────────────
         if not verified:
-            notify(f"Step failed after {max_retries} retries. Task paused.")
+            notify(f"Step {idx+1} verification failed. Initiating Reflection & Replanning...")
+            error_reason = f"Anchor check '{anchor_check}' was not met."
+            
+            ctx_summary = context_mgr.get_summary_prompt_context()
+            recovery_plan = replan_failed_step(step, error_reason, ctx_summary)
+            
+            if recovery_plan:
+                notify(f"Executing {len(recovery_plan)} recovery step(s)...")
+                for rec_step in recovery_plan:
+                    rec_action = rec_step.get("action", "").lower()
+                    notify(f"Recovery Step: {rec_action}")
+                    exec_mgr.execute_step(rec_step)
+                    time.sleep(1.0)
+                
+                # Final check after recovery
+                if verify_anchor(anchor_check):
+                    notify("Recovery successful! Anchor confirmed ✓")
+                    verified = True
+            
+        if not verified:
+            notify(f"Task stopped: Step {idx+1} could not be verified.")
+            memory_mgr.complete_task(success=False)
             return False
 
-    notify("Task complete.")
+    memory_mgr.complete_task(success=True)
+    notify("Task completed successfully!")
     return True
 
 
 def execute_react_loop(instruction: str, update_callback=None):
     """
-    Executes the full ReAct loop (sequential plan + execution) for backward compatibility.
+    Executes the full ReAct loop for backward compatibility.
     """
     plan = plan_task(instruction, update_callback)
     if not plan:
         return
     execute_task_plan(plan, update_callback)
 
-    notify("Task complete.")
-
 
 if __name__ == "__main__":
-    execute_react_loop("open youtube and search for lo-fi music")
+    execute_react_loop("open browser to google.com")

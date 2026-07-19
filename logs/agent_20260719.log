@@ -1,0 +1,11 @@
+[2026-07-19 18:36:44,162] [INFO] [ServentAI]: pywinauto not installed — UIAutomation will act as fallback check.
+[2026-07-19 18:36:44,163] [INFO] [ServentAI]: Executing Step [1] speak (Risk: SAFE) | Target: 'Architecture Test Successful'
+[2026-07-19 18:36:47,349] [INFO] [ServentAI]: Step [1] succeeded via PyAutoGUIExecutor: Spoke: 'Architecture Test Successful'
+[2026-07-19 18:36:47,350] [INFO] [ServentAI]: Action [1] speak -> SUCCESS | Context: {"step_id": 1, "action": "speak", "target": "Architecture Test Successful", "success": true, "duration_sec": 3.186, "msg": "Spoke: 'Architecture Test Successful'"}
+[2026-07-19 18:36:47,350] [INFO] [ServentAI]: Decomposing intent for: 'Open Google and search for AI news'
+[2026-07-19 18:37:46,535] [INFO] [ServentAI]: pywinauto not installed — UIAutomation will act as fallback check.
+[2026-07-19 18:37:46,536] [INFO] [ServentAI]: Executing Step [1] speak (Risk: SAFE) | Target: 'Architecture Test Successful'
+[2026-07-19 18:37:49,640] [INFO] [ServentAI]: Step [1] succeeded via PyAutoGUIExecutor: Spoke: 'Architecture Test Successful'
+[2026-07-19 18:37:49,647] [INFO] [ServentAI]: Action [1] speak -> SUCCESS | Context: {"step_id": 1, "action": "speak", "target": "Architecture Test Successful", "success": true, "duration_sec": 3.107, "msg": "Spoke: 'Architecture Test Successful'"}
+[2026-07-19 18:37:49,648] [INFO] [ServentAI]: Decomposing intent for: 'Open Google and search for AI news'
+[2026-07-19 18:37:49,648] [INFO] [ServentAI]: Architecture test completed successfully.

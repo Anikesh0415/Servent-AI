@@ -20,6 +20,11 @@ from src.fsm_module import AIF_StateMachine, SystemState
 from src.fusion_engine import FusionEngine
 from src.agent_loop import execute_react_loop, plan_task, execute_task_plan
 from src.action_library import type_action, key_action
+from src.context_manager import ContextManager
+from src.memory_manager import MemoryManager
+from src.execution_manager import ExecutionManager
+from src.security import SecurityManager
+from src.logger import logger
 
 class AIF_Server:
     def __init__(self):
@@ -28,6 +33,13 @@ class AIF_Server:
         self.tracker = HandTracker()
         self.stt = SpeechRecognizer()
         self.fusion = FusionEngine()
+        
+        # Core Architectural Managers
+        self.context_mgr = ContextManager()
+        self.memory_mgr = MemoryManager()
+        self.exec_mgr = ExecutionManager()
+        self.security_mgr = SecurityManager(safe_mode=True)
+        logger.info("AIF Server initialized with Context, Memory, Execution, and Security Managers.")
         
         self.latest_gesture_coords = None
         self.listening_thread = None

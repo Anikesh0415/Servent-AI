@@ -60,9 +60,14 @@ class MultiStagePlanner:
             "Break down this request into:\n"
             "1. Primary Intent\n"
             "2. Required Apps/Websites\n"
-            "3. Sub-goals sequence\n"
-            "Output JSON format: {\"intent\": \"...\", \"apps\": [...], \"sub_goals\": [...]}"
+            "3. Sub-goals sequence\n\n"
+            "CRITICAL BEHAVIORAL GUIDELINES TO CONSIDER FOR SUB-GOALS:\n"
+            "- In chat apps (WhatsApp), explicitly searching for a contact (ctrl+f, type name, tab, enter) is REQUIRED before sending messages.\n"
+            "- 'Paste' or 'Copy' must be translated to keyboard shortcuts.\n\n"
+            "Output JSON format: {\"intent\": \"...\", \"apps\": [...], \"sub_goals\": [\"goal 1\", \"goal 2\"]}"
         )
+        
+        logger.info(f"Decomposing intent for: '{instruction}'")
         
         try:
             res = self.core.process_intent(prompt, {"voice_command": instruction})
@@ -88,7 +93,6 @@ class MultiStagePlanner:
         sub_goals_list = []
         for sg in sub_goals_raw:
             if isinstance(sg, dict):
-                # If LLM returns a dict (e.g. {"goal": "do X"}), extract the first value
                 val = next(iter(sg.values())) if sg else ""
                 sub_goals_list.append(str(val))
             else:
@@ -100,6 +104,7 @@ class MultiStagePlanner:
             f"Context: {context_summary}\n"
             f"Target Sub-Goals: {sub_goals_str}\n"
             f"User Command: {instruction}\n"
+            "CRITICAL: Translate the sub-goals into VALID actions. 'Paste Text' is NOT an action (use type_text or key_shortcut). Do NOT blindly copy the sub-goals. You MUST implement the BEHAVIORAL GUIDELINES exactly (e.g., use ctrl+f, tab, enter for WhatsApp).\n"
             "Output the JSON action plan array now:"
         )
         

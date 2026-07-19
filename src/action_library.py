@@ -69,41 +69,39 @@ def scroll_action(amount: int) -> str:
 
 def open_app(app_name: str) -> str:
     """
-    Opens an app or website using keyboard-only methods.
-    - For known websites: Win+R -> browser URL -> Enter.
-    - For unknown apps:   Win+R -> app name -> Enter.
-    Avoids relying on the Start Menu search which is flaky.
+    Opens an app or website using Windows Search.
+    - Presses Win key, waits for search menu, types the target, and presses Enter.
     """
     app_lower = app_name.lower().strip()
     target = BROWSER_APP_MAP.get(app_lower)
 
     if target:
-        # Open URL in default browser via Win+R -> run dialog
-        _hotkey('win', 'r')
-        time.sleep(0.6)          # Wait for Run dialog to appear
+        # Open URL in default browser via Windows Search
+        pyautogui.press('win')
+        time.sleep(0.8)          # Wait for Search menu to appear
         type_action(target)
-        time.sleep(0.1)
+        time.sleep(0.5)          # Wait for search results
         pyautogui.press('enter')
         return f"Opened browser to: {target}"
     else:
-        # Unknown app — open via Win+R with the app name
-        _hotkey('win', 'r')
-        time.sleep(0.6)
-        type_action(app_lower)
-        time.sleep(0.1)
+        # Unknown app — open via Windows Search with the app name
+        pyautogui.press('win')
+        time.sleep(0.8)
+        type_action(app_name)
+        time.sleep(0.5)
         pyautogui.press('enter')
-        return f"Launched via Run: {app_lower}"
+        return f"Launched via Search: {app_name}"
 
 
 def navigate_browser(url: str) -> str:
     """
-    Navigates to a URL by using the Windows Run dialog (Win+R).
+    Navigates to a URL by using the Windows Search.
     This ensures the default browser opens it even if not currently focused.
     """
-    _hotkey('win', 'r')
-    time.sleep(0.6)
+    pyautogui.press('win')
+    time.sleep(0.8)
     type_action(url)
-    time.sleep(0.1)
+    time.sleep(0.5)
     pyautogui.press('enter')
     return f"Navigated to: {url}"
 

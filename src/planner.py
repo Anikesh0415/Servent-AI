@@ -40,6 +40,17 @@ OUTPUT FORMAT (strict JSON object containing a 'steps' array):
     }
   ]
 }
+
+EXAMPLE WHATSAPP SEQUENCE:
+When asked to send a message to Balram on WhatsApp, you MUST generate this sequence:
+1. {"action": "open_app", "name": "WhatsApp"}
+2. {"action": "key_shortcut", "keys": "ctrl+f"}
+3. {"action": "type_text", "text": "Balram"}
+4. {"action": "wait_until", "condition": "search results load"}
+5. {"action": "key_shortcut", "keys": "tab"}
+6. {"action": "key_shortcut", "keys": "enter"}
+7. {"action": "key_shortcut", "keys": "ctrl+v"} (if pasting) OR {"action": "type_text", "text": "..."} (if typing)
+8. {"action": "key_shortcut", "keys": "enter"}
 """
 
 class MultiStagePlanner:

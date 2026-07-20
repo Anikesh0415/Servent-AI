@@ -142,7 +142,7 @@ function connectWebSocket() {
             chatLog.innerHTML = ""; // Clear existing log
             
             if (data.history.length === 0) {
-                appendMessage('SYSTEM', 'Connection established. Servent is online.');
+                appendMessage('SYSTEM', 'Connection established. System is online.');
             } else {
                 data.history.forEach(msg => {
                     appendMessage(msg.sender, msg.text);
@@ -523,3 +523,25 @@ groupHeaders.forEach(header => {
         }
     });
 });
+
+// Settings Modal Logic
+const settingsToggle = document.getElementById('settings-toggle');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+
+if (settingsToggle && settingsModal) {
+    settingsToggle.addEventListener('click', () => {
+        settingsModal.classList.add('active');
+    });
+    
+    closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+    });
+    
+    // Close on click outside
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.remove('active');
+        }
+    });
+}

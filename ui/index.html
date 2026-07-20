@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style_v10.css">
+    <link rel="stylesheet" href="style_v11.css">
 </head>
 <body>
 
@@ -31,7 +31,6 @@
             <div class="sys-info">
                 <button class="icon-btn" id="sidebar-toggle" style="margin-right: 24px;"><i class="fa-solid fa-bars"></i></button>
                 <div class="sys-state-wrapper">
-                    <i class="fa-solid fa-code-branch"></i>
                     <span id="sys-state">Initializing Core...</span>
                 </div>
             </div>
@@ -79,21 +78,12 @@
                 <div class="chat-header" style="justify-content: flex-end;">
                     <div class="audio-dropdown-container">
                         <button class="icon-btn" id="tts-toggle" title="Audio Options"><i class="fa-solid fa-volume-high"></i></button>
-                        <div id="voice-dropdown" class="voice-dropdown-content glass">
-                            <label>Select Voice</label>
-                            <div class="custom-dropdown glass" id="voice-dropdown-ui">
-                                <div class="custom-dropdown-selected"><span id="voice-selected-text">Loading voices...</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
-                                <div class="custom-dropdown-options glass" id="voice-options-container">
-                                    <div class="custom-dropdown-option" data-value="">Loading voices...</div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <div class="chat-log" id="chat-log">
                     <div class="message system-msg">
-                        <div class="msg-bubble">Servent Protocol Online. Awaiting command...</div>
+                        <div class="msg-bubble">System Online. Ready for input.</div>
                     </div>
                 </div>
                 
@@ -158,6 +148,26 @@
 
     </div>
     
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="close-modal-btn" id="close-settings-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="setting-group">
+                <label>Text-To-Speech Voice</label>
+                <div class="custom-dropdown glass" id="voice-dropdown-ui" style="width: 100%;">
+                    <div class="custom-dropdown-selected"><span id="voice-selected-text">Loading voices...</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
+                    <div class="custom-dropdown-options glass" id="voice-options-container">
+                        <div class="custom-dropdown-option" data-value="">Loading voices...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

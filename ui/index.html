@@ -120,6 +120,12 @@
                         <button id="select-folder-btn" class="glass" title="Select Folder" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;"><i class="fa-solid fa-folder-open"></i></button>
                     </div>
                 </div>
+                
+                <button class="toggle-btn" id="student-mode-toggle" title="Student Mode (AI Tutor)"><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
+                <div id="student-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
+                    <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
+                </div>
+
                 <button class="toggle-btn" id="dictate-toggle" title="Dictation Mode (Type with voice)"><i class="fa-solid fa-microphone-lines"></i> Dictate</button>
                 <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode (Record and Summarize)"><i class="fa-solid fa-users-viewfinder"></i> Meeting</button>
                 <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 5px 0;">

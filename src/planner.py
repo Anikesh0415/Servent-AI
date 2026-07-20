@@ -131,6 +131,20 @@ You may use the following exclusive Developer Actions:
 - run_terminal: {"action": "run_terminal", "command": "bash/cmd string", "cwd": "absolute directory path"}
 When asked to code, debug, or write scripts, USE THESE ACTIONS INSTEAD of opening VS Code via UI clicks.
 """
+        elif "[STUDENT_MODE:" in instruction:
+            import re
+            url_match = re.search(r"\[STUDENT_MODE: (.*?)\]", instruction)
+            url_context = f"The user provided this URL/Path: {url_match.group(1)}" if url_match else ""
+            system_prompt += f"""
+### STUDENT MODE UNLOCKED ###
+You are now operating as an AI Tutor. {url_context}
+You may use the following exclusive Student Actions:
+- summarize_youtube: {{"action": "summarize_youtube", "url": "YouTube URL to extract transcript from"}}
+- generate_study_html: {{"action": "generate_study_html", "path": "absolute path to save html", "html_content": "Full HTML/JS code for an interactive quiz or 3D diagram"}}
+- read_file: {{"action": "read_file", "path": "absolute path to document file"}}
+- write_file: {{"action": "write_file", "path": "absolute path to save notes", "content": "notes content"}}
+For 3D diagrams or quizzes, use `generate_study_html` to output a fully self-contained HTML document (e.g. using Three.js for 3D, or vanilla JS for a quiz).
+"""
 
         if "[IMAGE_ATTACHED:" in instruction:
             import re

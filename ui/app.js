@@ -255,11 +255,16 @@ if (removeImageBtn) {
 function sendTextCommand() {
     let text = textInput.value.trim();
     if (text && ws && ws.readyState === WebSocket.OPEN) {
-        // Dev Mode Injection
+        // Dev Mode / Student Mode Injection
         const devToggle = document.getElementById('dev-mode-toggle');
+        const studentToggle = document.getElementById('student-mode-toggle');
+        
         if (devToggle && devToggle.classList.contains('active')) {
             const devFolder = document.getElementById('dev-folder-input').value.trim() || "C:\\";
             text = `[DEV_MODE: ${devFolder}] ${text}`;
+        } else if (studentToggle && studentToggle.classList.contains('active')) {
+            const studentUrl = document.getElementById('student-url-input').value.trim();
+            text = `[STUDENT_MODE: ${studentUrl}] ${text}`;
         }
 
         appendMessage('USER', textInput.value.trim()); // Display clean text to user
@@ -315,14 +320,31 @@ const dictateToggle = document.getElementById('dictate-toggle');
 const meetingToggle = document.getElementById('meeting-toggle');
 const devModeToggle = document.getElementById('dev-mode-toggle');
 const devModeConfig = document.getElementById('dev-mode-config');
+const studentModeToggle = document.getElementById('student-mode-toggle');
+const studentModeConfig = document.getElementById('student-mode-config');
 
 if (devModeToggle && devModeConfig) {
     devModeToggle.addEventListener('click', () => {
         devModeToggle.classList.toggle('active');
         if (devModeToggle.classList.contains('active')) {
             devModeConfig.style.display = 'flex';
+            // Auto-disable Student Mode if turning on Dev Mode
+            if(studentModeToggle) { studentModeToggle.classList.remove('active'); studentModeConfig.style.display = 'none'; }
         } else {
             devModeConfig.style.display = 'none';
+        }
+    });
+}
+
+if (studentModeToggle && studentModeConfig) {
+    studentModeToggle.addEventListener('click', () => {
+        studentModeToggle.classList.toggle('active');
+        if (studentModeToggle.classList.contains('active')) {
+            studentModeConfig.style.display = 'flex';
+            // Auto-disable Dev Mode if turning on Student Mode
+            if(devModeToggle) { devModeToggle.classList.remove('active'); devModeConfig.style.display = 'none'; }
+        } else {
+            studentModeConfig.style.display = 'none';
         }
     });
 }

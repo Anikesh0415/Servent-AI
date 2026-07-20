@@ -772,3 +772,34 @@ if (studentModeBtn && studentToolsContainer) {
         appendMessage('SYSTEM', 'Switched to Student Focus Mode. Ready to study!');
     });
 }
+
+// Chat History Logic
+const newChatBtn = document.querySelector('.new-chat-btn');
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', () => {
+        chatLog.innerHTML = '';
+        const usageBar = document.querySelector('.context-usage-bar-fill');
+        const usageText = document.querySelector('.context-usage-text');
+        if (usageBar) usageBar.style.width = '0%';
+        if (usageText) usageText.textContent = '0 / 128,000 (0%)';
+        
+        appendMessage('SYSTEM', 'Started a fresh conversation. How can I help you today?');
+        
+        const historyDrawer = document.getElementById('chat-history-drawer');
+        if (historyDrawer) historyDrawer.classList.remove('open');
+        
+        document.querySelectorAll('.history-item.active').forEach(el => el.classList.remove('active'));
+    });
+}
+
+const historyContent = document.querySelector('.history-content');
+if (historyContent) {
+    historyContent.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-chat-btn');
+        if (deleteBtn) {
+            e.stopPropagation();
+            const item = deleteBtn.closest('.history-item');
+            if (item) item.remove();
+        }
+    });
+}

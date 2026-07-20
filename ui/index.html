@@ -24,17 +24,17 @@
         <div class="history-content">
             <div class="history-group">
                 <div class="history-group-title">Today</div>
-                <div class="history-item active"><i class="fa-regular fa-message"></i> Vectors in Physics</div>
-                <div class="history-item"><i class="fa-regular fa-message"></i> YouTube Summarization</div>
+                <div class="history-item active"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Vectors in Physics</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
+                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">YouTube Summarization</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
             </div>
             <div class="history-group">
                 <div class="history-group-title">Yesterday</div>
-                <div class="history-item"><i class="fa-regular fa-message"></i> React UI Debugging</div>
-                <div class="history-item"><i class="fa-regular fa-message"></i> Email Draft to Professor</div>
+                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">React UI Debugging</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
+                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Email Draft to Professor</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
             </div>
             <div class="history-group">
                 <div class="history-group-title">Previous 7 Days</div>
-                <div class="history-item"><i class="fa-regular fa-message"></i> Exam Prep Flashcards</div>
+                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Exam Prep Flashcards</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
             </div>
         </div>
     </div>
@@ -321,6 +321,10 @@
                     <input type="checkbox" checked>
                     <span class="slider"></span>
                 </label>
+            </div>
+            <div class="setting-group" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <label>User Context / Profile Data</label>
+                <textarea id="user-context-input" class="glass" style="width: 100%; height: 80px; padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff; font-family: inherit; font-size: 0.85rem; resize: vertical;" placeholder="E.g. I am a high school student learning Physics..."></textarea>
             </div>
             <div class="setting-group">
                 <label>Remember Code Preferences</label>

@@ -3,6 +3,7 @@ from src.executors.pyautogui_executor import PyAutoGUIExecutor
 from src.executors.ui_automation_executor import UIAutomationExecutor
 from src.executors.dev_executor import DevExecutor
 from src.executors.student_executor import StudentExecutor
+from src.executors.headless_executor import HeadlessExecutor
 from src.logger import logger
 from src.security import SecurityManager
 
@@ -14,6 +15,7 @@ class ExecutionManager:
     """
     def __init__(self):
         self.executors = [
+            HeadlessExecutor(),
             StudentExecutor(), # Try student execution first
             DevExecutor(), # Then developer execution
             UIAutomationExecutor(),

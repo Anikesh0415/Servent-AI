@@ -30,30 +30,44 @@ This framework is built with **accessibility** at its heart, providing physicall
 ```mermaid
 graph TD
     User(("🗣️ User Request")) --> UI["💻 Ecosystem Control Center"]
-    UI --> Router{"🚦 Smart Intent Router"}
     
-    Router -->|Conversational| ChatResponse["💬 Instant Chat Reply"]
-    Router -->|Background| HeadlessWorker["👻 Headless API Task"]
-    Router -->|GUI Takeover| Macro["🏗️ Macro Orchestrator\n(Logic & Loops)"]
+    subgraph Execution Routing
+        UI --> Router{"🚦 Smart Intent Router"}
+        Router -->|Conversational| ChatResponse["💬 Instant Chat Reply"]
+        Router -->|Background| HeadlessWorker["👻 Headless API Engine"]
+        Router -->|GUI Takeover| Macro["🏗️ Macro Orchestrator\n(Logic & Loops)"]
+        Router -->|Student Focus| StudentEngine["🎓 AI Tutor Engine"]
+    end
     
-    Macro -->|Dynamic Sub-Tasks| Planner{"🧠 ARIA Planner\n(Hermes 8B)"}
-    SkillDB[("📚 Skill Library\n(RAG / skills.json)")] -.->|Injects Examples| Planner
+    subgraph Headless Execution
+        HeadlessWorker --> FetchAPI["🌐 Background API Call\n(YouTube Transcript API)"]
+        FetchAPI --> LLMSummarize["🧠 Background LLM Summarize\n(Hermes 8B)"]
+        LLMSummarize --> UI
+    end
     
-    Planner -->|JSON Action Plan| AgentLoop(("⚙️ Central Agent Loop"))
+    subgraph Tutor Execution
+        StudentEngine --> QuizGen["📝 Generate Interactive Quiz"]
+        StudentEngine --> FlashcardGen["📇 Generate Smart Flashcards"]
+    end
     
-    AgentLoop -->|Execute| ExecMgr["⚡ Execution Manager\n(PyAutoGUI / PyTesseract)"]
-    AgentLoop -->|Verify| VistaWait["👁️ VISTA Moondream\n(smart_wait_for_completion)"]
-    
-    VistaWait -.->|Wait Condition Met ✓| AgentLoop
-    
-    ExecMgr --> TargetApp["🖥️ Target App\n(WhatsApp, Web, etc.)"]
-    
-    ExecMgr --> OCRClick["👀 OCR click_text"]
-    OCRClick --> TargetApp
-    
-    ExecMgr --> SemanticCopy["🪄 Semantic Copy"]
-    SemanticCopy --> HermesFilter{"🧹 Hermes LLM\nData Cleaner"}
-    HermesFilter --> TargetApp
+    subgraph GUI Takeover
+        Macro -->|Dynamic Sub-Tasks| Planner{"🧠 ARIA Planner\n(Hermes 8B)"}
+        SkillDB[("📚 Skill Library\n(RAG / skills.json)")] -.->|Injects Examples| Planner
+        
+        Planner -->|JSON Action Plan| AgentLoop(("⚙️ Central Agent Loop"))
+        
+        AgentLoop -->|Execute| ExecMgr["⚡ Execution Manager\n(PyAutoGUI / PyTesseract)"]
+        AgentLoop -->|Verify| VistaWait["👁️ VISTA Moondream\n(smart_wait_for_completion)"]
+        
+        VistaWait -.->|Wait Condition Met ✓| AgentLoop
+        
+        ExecMgr --> TargetApp["🖥️ Target App\n(WhatsApp, Web, etc.)"]
+        ExecMgr --> OCRClick["👀 OCR click_text"]
+        OCRClick --> TargetApp
+        ExecMgr --> SemanticCopy["🪄 Semantic Copy"]
+        SemanticCopy --> HermesFilter{"🧹 Hermes LLM\nData Cleaner"}
+        HermesFilter --> TargetApp
+    end
 ```
 
 ---

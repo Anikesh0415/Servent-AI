@@ -105,6 +105,8 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
             
         if not success:
             notify(f"Action execution warning: {exec_msg}")
+        elif action_type.startswith("background_") or action_type == "summarize_youtube":
+            notify(f"Result: {exec_msg}")
 
         # ── 3. VERIFY ───────────────────────────────────────────────────────
         NO_VERIFY = {"scroll", "copy_all", "paste", "speak", "wait_until", "hover_element", "read_file", "write_file", "run_terminal", "summarize_youtube", "generate_study_html", "search_knowledge_base"}

@@ -304,7 +304,18 @@ class AIF_Server:
                     # -----------------------------
                     
                     try:
-                        plan = plan_task(instruction, update_callback=update_ui)
+                        # --- Smart Intent Router ---
+                        settings = self.fsm.current_context.get("settings", {})
+                        is_headless = settings.get("headlessMode", True) # Default to true for safety
+                        
+                        if is_headless and ("youtube" in instruction.lower() or "youtu.be" in instruction.lower()):
+                            plan = [
+                                {"action": "background_api_call", "target": "YouTube Transcript API"},
+                                {"action": "background_llm_summarize", "target": "Hermes 8B Local"}
+                            ]
+                        else:
+                            plan = plan_task(instruction, update_callback=update_ui)
+                        # ---------------------------
                         if plan:
                             self.fsm.current_context["pending_plan"] = plan
                             steps_summary = "\n".join([f"- {s.get('action', '').replace('_', ' ').title()}: {s.get('name', s.get('url', s.get('text', s.get('keys', s.get('target', '')))))}" for s in plan])
@@ -462,6 +473,9 @@ class AIF_Server:
                             "type": "CHAT_HISTORY",
                             "history": self.chat_history
                         }))
+                    elif cmd == "UPDATE_SETTINGS":
+                        self.fsm.current_context["settings"] = payload.get("settings", {})
+                        print(f"Settings updated: {self.fsm.current_context['settings']}")
                 except asyncio.TimeoutError:
                     pass
                     

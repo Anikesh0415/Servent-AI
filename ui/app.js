@@ -813,3 +813,28 @@ if (historyContent) {
         }
     });
 }
+
+// Settings Sync Logic
+function syncSettings() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const headlessToggle = document.getElementById('headless-mode-toggle');
+        const userContext = document.getElementById('user-context-input');
+        
+        ws.send(JSON.stringify({
+            command: "UPDATE_SETTINGS",
+            settings: {
+                headlessMode: headlessToggle ? headlessToggle.checked : true,
+                userContext: userContext ? userContext.value : ""
+            }
+        }));
+    }
+}
+
+const headlessModeToggle = document.getElementById('headless-mode-toggle');
+if (headlessModeToggle) {
+    headlessModeToggle.addEventListener('change', syncSettings);
+}
+const userContextInput = document.getElementById('user-context-input');
+if (userContextInput) {
+    userContextInput.addEventListener('change', syncSettings);
+}

@@ -28,7 +28,8 @@ STEP TYPES AVAILABLE:
 - scroll: {"action": "scroll", "direction": "down", "amount": 3}
 - speak: {"action": "speak", "text": "what to say to user"}
 - semantic_copy: {"action": "semantic_copy", "goal": "what exact data to extract from the screen into clipboard"}
-- click_text: {"action": "click_text", "text": "exact word or text on screen to click"}
+- hover_element: {"action": "hover_element", "target": "exact text on screen to hover over"}
+- click_text: {"action": "click_text", "text": "exact word to click", "index": 1} (use index if there are multiple identical buttons, defaults to 1)
 
 OUTPUT FORMAT (strict JSON object containing a 'steps' array):
 {

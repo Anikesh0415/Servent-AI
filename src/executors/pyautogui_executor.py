@@ -18,7 +18,7 @@ class PyAutoGUIExecutor(BaseExecutor):
         supported = [
             "open_app", "open_browser", "type_text", "key_shortcut",
             "scroll", "click_element", "copy_all", "paste", "speak", "wait_until",
-            "semantic_copy", "click_text"
+            "semantic_copy", "click_text", "hover_element"
         ]
         return action_type.lower() in supported
 
@@ -79,6 +79,9 @@ class PyAutoGUIExecutor(BaseExecutor):
 
             elif action_type == "wait_until":
                 condition = step_data.get("condition", "")
+                if not condition or str(condition).strip() == "":
+                    return True, "No wait condition provided, skipping."
+                
                 success = smart_wait_for_completion(condition)
                 if success:
                     return True, f"Wait condition met: '{condition}'"
@@ -90,8 +93,33 @@ class PyAutoGUIExecutor(BaseExecutor):
                 msg = semantic_copy(goal)
                 return True, msg
 
+            elif action_type == "hover_element":
+                target_text = step_data.get("target") or step_data.get("text", "")
+                try:
+                    import pytesseract
+                    from pytesseract import Output
+                    from PIL import ImageGrab
+                    import pyautogui
+                    img = ImageGrab.grab()
+                    data = pytesseract.image_to_data(img, output_type=Output.DICT)
+                    hovered = False
+                    for i in range(len(data['text'])):
+                        if target_text.lower() in data['text'][i].lower():
+                            x = data['left'][i] + data['width'][i] / 2
+                            y = data['top'][i] + data['height'][i] / 2
+                            pyautogui.moveTo(x, y, duration=0.2)
+                            hovered = True
+                            break
+                    if hovered:
+                        return True, f"OCR hovered over text: '{target_text}'"
+                    else:
+                        return False, f"OCR failed to find text to hover: '{target_text}'"
+                except Exception as e:
+                    return False, f"OCR hover error: {e}"
+
             elif action_type == "click_text":
                 target_text = step_data.get("text", "")
+                target_index = int(step_data.get("index", 1))
                 try:
                     import pytesseract
                     from pytesseract import Output
@@ -100,17 +128,20 @@ class PyAutoGUIExecutor(BaseExecutor):
                     img = ImageGrab.grab()
                     data = pytesseract.image_to_data(img, output_type=Output.DICT)
                     clicked = False
+                    match_count = 0
                     for i in range(len(data['text'])):
                         if target_text.lower() in data['text'][i].lower():
-                            x = data['left'][i] + data['width'][i] / 2
-                            y = data['top'][i] + data['height'][i] / 2
-                            pyautogui.click(x, y)
-                            clicked = True
-                            break
+                            match_count += 1
+                            if match_count == target_index:
+                                x = data['left'][i] + data['width'][i] / 2
+                                y = data['top'][i] + data['height'][i] / 2
+                                pyautogui.click(x, y)
+                                clicked = True
+                                break
                     if clicked:
-                        return True, f"OCR clicked text: '{target_text}'"
+                        return True, f"OCR clicked text: '{target_text}' (index {target_index})"
                     else:
-                        return False, f"OCR failed to find text: '{target_text}'"
+                        return False, f"OCR failed to find text: '{target_text}' (index {target_index})"
                 except Exception as e:
                     return False, f"OCR click error: {e}"
 

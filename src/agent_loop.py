@@ -106,7 +106,7 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
             notify(f"Action execution warning: {exec_msg}")
 
         # ── 3. VERIFY ───────────────────────────────────────────────────────
-        NO_VERIFY = {"scroll", "copy_all", "paste", "speak", "wait_until"}
+        NO_VERIFY = {"scroll", "copy_all", "paste", "speak", "wait_until", "hover_element"}
         if action_type in NO_VERIFY or not anchor_check:
             time.sleep(ACTION_PAUSE)
             memory_mgr.log_action(action_type, str(target), exec_msg, True, "No verification needed")

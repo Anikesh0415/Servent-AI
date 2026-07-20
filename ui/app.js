@@ -676,6 +676,48 @@ macroBtns.forEach(btn => {
             return;
         }
 
+        if (cmd === "generate-flashcard") {
+            const fcHtml = `
+            <div class="flashcard-container">
+                <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                    <div class="flashcard-front">
+                        <div class="flashcard-title">Front</div>
+                        <div class="flashcard-content">What is the powerhouse of the cell?</div>
+                        <div class="flashcard-hint">Click to flip</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-title">Back</div>
+                        <div class="flashcard-content">Mitochondria</div>
+                        <div class="flashcard-hint">Click to flip back</div>
+                    </div>
+                </div>
+            </div>`;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message system-msg`;
+            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${fcHtml}</div>`;
+            document.getElementById('chat-log').appendChild(msgDiv);
+            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
+            return;
+        }
+
+        if (cmd === "generate-handwritten") {
+            const hwHtml = `
+            <div style="background: #fdf6e3; padding: 20px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-family: 'Comic Sans MS', cursive, sans-serif; color: #2c3e50; line-height: 1.6; position: relative; max-width: 400px; margin: 16px 0;">
+                <div style="position: absolute; top: 0; left: 40px; bottom: 0; width: 2px; background: rgba(255,0,0,0.2);"></div>
+                <div style="padding-left: 30px;">
+                    <div style="text-align: right; font-size: 0.8rem; margin-bottom: 10px; color: #34495e;">Name: Balram<br>Date: Oct 12</div>
+                    <h3 style="margin-top: 0; text-decoration: underline; font-size: 1.2rem;">Photosynthesis Project</h3>
+                    <p style="font-size: 0.95rem;">Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water. Photosynthesis in plants generally involves the green pigment chlorophyll and generates oxygen as a byproduct.</p>
+                </div>
+            </div>`;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message system-msg`;
+            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${hwHtml}</div>`;
+            document.getElementById('chat-log').appendChild(msgDiv);
+            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
+            return;
+        }
+
         if (macroProgress) {
             macroProgress.classList.add('active');
             let steps = ["Initializing automation...", "Executing tasks...", "Finalizing..."];
@@ -697,3 +739,24 @@ macroBtns.forEach(btn => {
         logToTerminal(`Running macro: ${cmd}`, 'info');
     });
 });
+
+// Mode Switching Logic
+const devModeBtn = document.getElementById('dev-mode-btn');
+const studentModeBtn = document.getElementById('student-mode-btn');
+const devToolsContainer = document.getElementById('developer-tools-container');
+const studentToolsContainer = document.getElementById('student-tools-container');
+
+if (devModeBtn && devToolsContainer) {
+    devModeBtn.addEventListener('click', () => {
+        devToolsContainer.style.display = 'block';
+        studentToolsContainer.style.display = 'none';
+        appendMessage('SYSTEM', 'Switched to Developer Mode.');
+    });
+}
+if (studentModeBtn && studentToolsContainer) {
+    studentModeBtn.addEventListener('click', () => {
+        devToolsContainer.style.display = 'none';
+        studentToolsContainer.style.display = 'block';
+        appendMessage('SYSTEM', 'Switched to Student Focus Mode. Ready to study!');
+    });
+}

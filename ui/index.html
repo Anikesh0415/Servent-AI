@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style_v13.css">
+    <link rel="stylesheet" href="style_v14.css">
 </head>
 <body>
 
@@ -76,28 +76,41 @@
         <main class="main-content">
             <!-- Left Quick Actions Sidebar -->
             <aside id="quick-actions-panel" class="quick-actions glass">
-                <div class="workspace-selector">
-                    <div class="custom-dropdown glass" id="workspace-dropdown" style="width: 100%;">
-                        <div class="custom-dropdown-selected"><span id="workspace-text">Frontend App</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
-                        <div class="custom-dropdown-options glass">
-                            <div class="custom-dropdown-option" data-value="frontend">Frontend App</div>
-                            <div class="custom-dropdown-option" data-value="backend">Backend API</div>
-                            <div class="custom-dropdown-option" data-value="mobile">Mobile App</div>
+                
+                <!-- DEVELOPER TOOLS (Default) -->
+                <div id="developer-tools-container">
+                    <div class="workspace-selector">
+                        <div class="custom-dropdown glass" id="workspace-dropdown" style="width: 100%;">
+                            <div class="custom-dropdown-selected"><span id="workspace-text">Frontend App</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
+                            <div class="custom-dropdown-options glass">
+                                <div class="custom-dropdown-option" data-value="frontend">Frontend App</div>
+                                <div class="custom-dropdown-option" data-value="backend">Backend API</div>
+                                <div class="custom-dropdown-option" data-value="mobile">Mobile App</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="group-header">Macro Automations</div>
-                <button class="action-btn macro-btn" data-cmd="Clean and format the entire project according to linter rules."><i class="fa-solid fa-broom"></i> Format Project</button>
-                <button class="action-btn macro-btn" data-cmd="Start the development server and open localhost in the browser."><i class="fa-solid fa-rocket"></i> Start Dev Server</button>
-                <button class="action-btn macro-btn" data-cmd="Run the full unit test suite and report any failures."><i class="fa-solid fa-vial"></i> Run Test Suite</button>
-                <button class="action-btn macro-btn" data-cmd="Compile and build the project for production deployment."><i class="fa-solid fa-box-open"></i> Build Production</button>
-                <button class="action-btn macro-btn snippet-btn" data-cmd="generate-snippet"><i class="fa-solid fa-code"></i> Mock Code Snippet</button>
+                    
+                    <div class="group-header">Macro Automations</div>
+                    <button class="action-btn macro-btn" data-cmd="Clean and format the entire project according to linter rules."><i class="fa-solid fa-broom"></i> Format Project</button>
+                    <button class="action-btn macro-btn" data-cmd="Start the development server and open localhost in the browser."><i class="fa-solid fa-rocket"></i> Start Dev Server</button>
+                    <button class="action-btn macro-btn" data-cmd="Run the full unit test suite and report any failures."><i class="fa-solid fa-vial"></i> Run Test Suite</button>
+                    <button class="action-btn macro-btn" data-cmd="Compile and build the project for production deployment."><i class="fa-solid fa-box-open"></i> Build Production</button>
+                    <button class="action-btn macro-btn snippet-btn" data-cmd="generate-snippet"><i class="fa-solid fa-code"></i> Mock Code Snippet</button>
 
-                <div class="group-header" style="margin-top: 16px;">Code Assistant</div>
-                <button class="action-btn" data-cmd="Switch to VS Code, read the code currently on my screen, and check it for any bugs or optimizations."><i class="fa-solid fa-file-code"></i> Review VS Code</button>
-                <button class="action-btn" data-cmd="Switch to Notepad, read the text currently open, and explain what it does or fix any errors."><i class="fa-solid fa-clipboard-list"></i> Check Notepad</button>
-                <button class="action-btn" data-cmd="Look at the error message visible on my screen, search for a fix, and explain it to me."><i class="fa-solid fa-bug"></i> Debug Screen Error</button>
+                    <div class="group-header" style="margin-top: 16px;">Code Assistant</div>
+                    <button class="action-btn" data-cmd="Switch to VS Code, read the code currently on my screen, and check it for any bugs or optimizations."><i class="fa-solid fa-file-code"></i> Review VS Code</button>
+                    <button class="action-btn" data-cmd="Switch to Notepad, read the text currently open, and explain what it does or fix any errors."><i class="fa-solid fa-clipboard-list"></i> Check Notepad</button>
+                    <button class="action-btn" data-cmd="Look at the error message visible on my screen, search for a fix, and explain it to me."><i class="fa-solid fa-bug"></i> Debug Screen Error</button>
+                </div>
+
+                <!-- STUDENT TOOLS (Hidden by default) -->
+                <div id="student-tools-container" style="display: none;">
+                    <div class="group-header">Student Study Center</div>
+                    <button class="action-btn macro-btn" data-cmd="generate-handwritten"><i class="fa-solid fa-pen-nib"></i> Handwritten A4 Generator</button>
+                    <button class="action-btn macro-btn" data-cmd="generate-flashcard"><i class="fa-solid fa-layer-group"></i> Create Flashcards</button>
+                    <button class="action-btn macro-btn" data-cmd="launch-3d-sim"><i class="fa-solid fa-cubes"></i> 3D Diagram Explorer</button>
+                    <button class="action-btn macro-btn" data-cmd="generate-quiz"><i class="fa-solid fa-clipboard-question"></i> Generate Practice Quiz</button>
+                </div>
             </aside>
 
             <!-- Center Chat Interface -->
@@ -194,15 +207,15 @@
                 </div>
 
                 <div class="group-header">Automation Profiles</div>
-                <button class="action-btn" data-cmd="Switch to Developer Mode and load development tools."><i class="fa-solid fa-code"></i> Developer Mode</button>
+                <div class="accordion-content">
+                    <button class="toggle-btn" id="dev-mode-btn" data-cmd="Switch to Developer Mode and load development tools."><i class="fa-solid fa-code"></i> Developer Mode</button>
                     <div id="dev-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
                         <div style="display: flex; gap: 5px;">
                             <input type="text" id="dev-folder-input" placeholder="e.g. C:\MyProject" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
-                            <button id="select-folder-btn" class="glass" title="Select Folder" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;"><i class="fa-solid fa-folder-open"></i></button>
+                            <button class="icon-btn" id="dev-folder-browse" style="border-radius: 4px; padding: 0 10px;"><i class="fa-regular fa-folder-open"></i></button>
                         </div>
                     </div>
-                    
-                    <button class="toggle-btn" id="student-mode-toggle" title="Student Mode (AI Tutor)"><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
+                    <button class="toggle-btn" id="student-mode-btn" data-cmd="Switch to Student Mode and load study tools."><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
                     <div id="student-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
                         <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
                     </div>

@@ -369,12 +369,43 @@ class AIF_Server:
                     elif cmd == "REJECT_PLAN":
                         print("UI rejection received!")
                         self.reject_plan()
+                    elif cmd == "SELECT_FOLDER":
+                        import tkinter as tk
+                        from tkinter import filedialog
+                        root = tk.Tk()
+                        root.attributes('-topmost', True)
+                        root.withdraw()
+                        folder_path = filedialog.askdirectory()
+                        root.destroy()
+                        if folder_path:
+                            # Normalize path for JSON/Websocket
+                            folder_path = folder_path.replace("/", "\\")
+                            await websocket.send(json.dumps({"type": "FOLDER_SELECTED", "path": folder_path}))
+                    elif cmd == "IMAGE_UPLOAD":
+                        img_data = payload.get("image")
+                        if img_data:
+                            import base64
+                            import os
+                            try:
+                                img_bytes = base64.b64decode(img_data.split(',')[1])
+                                img_path = os.path.abspath("uploaded_image.png")
+                                with open(img_path, "wb") as f:
+                                    f.write(img_bytes)
+                                self.fsm.current_context["uploaded_image"] = img_path
+                                print(f"Image uploaded and saved to {img_path}")
+                            except Exception as e:
+                                print(f"Failed to process image: {e}")
                     elif cmd == "TEXT_INPUT":
                         if self.fsm.state != SystemState.IDLE:
                             print('Ignoring TEXT_INPUT: system is busy')
                         else:
                             text_cmd = payload.get("text")
                             if text_cmd:
+                                img_path = self.fsm.current_context.get("uploaded_image")
+                                if img_path:
+                                    text_cmd = f"[IMAGE_ATTACHED: {img_path}] " + text_cmd
+                                    self.fsm.current_context["uploaded_image"] = None # clear after use
+                                    
                                 self.fsm.update_context(voice_text=text_cmd, gesture_coords=self.latest_gesture_coords)
                                 self.fsm.transition(SystemState.PROCESSING_INTENT)
                 except asyncio.TimeoutError:

@@ -112,7 +112,17 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        updateState(data.state);
+        if (data.type === "FOLDER_SELECTED") {
+            const folderInput = document.getElementById('dev-folder-input');
+            if (folderInput) {
+                folderInput.value = data.path;
+            }
+            return;
+        }
+        
+        if (data.state) {
+            updateState(data.state);
+        }
         
         const isProcessing = data.state === 'PROCESSING_INTENT' || data.state === 'EXECUTING';
         textInput.disabled = isProcessing;
@@ -189,6 +199,58 @@ if (confirmBtn && rejectBtn) {
     });
 }
 
+// Image Upload Logic
+let currentAttachedImage = null;
+
+const uploadBtn = document.getElementById('upload-image-btn');
+const imageInput = document.getElementById('image-upload-input');
+const imagePreviewContainer = document.getElementById('image-preview-container');
+const imagePreview = document.getElementById('image-preview');
+const removeImageBtn = document.getElementById('remove-image-btn');
+const selectFolderBtn = document.getElementById('select-folder-btn');
+
+if (selectFolderBtn) {
+    selectFolderBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ command: "SELECT_FOLDER" }));
+        }
+    });
+}
+
+if (uploadBtn && imageInput) {
+    uploadBtn.addEventListener('click', () => imageInput.click());
+    
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentAttachedImage = event.target.result;
+                imagePreview.src = currentAttachedImage;
+                imagePreviewContainer.style.display = 'flex';
+                
+                // Send immediately to server
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        command: "IMAGE_UPLOAD",
+                        image: currentAttachedImage
+                    }));
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+if (removeImageBtn) {
+    removeImageBtn.addEventListener('click', () => {
+        currentAttachedImage = null;
+        imagePreview.src = "";
+        imagePreviewContainer.style.display = 'none';
+        imageInput.value = ""; // Reset input
+    });
+}
+
 // Text Input Logic
 function sendTextCommand() {
     let text = textInput.value.trim();
@@ -203,11 +265,21 @@ function sendTextCommand() {
         appendMessage('USER', textInput.value.trim()); // Display clean text to user
         // Temporarily set lastVoiceText to avoid duping it when the server echoes it back
         lastVoiceText = textInput.value.trim();
+        
         ws.send(JSON.stringify({
             command: "TEXT_INPUT",
             text: text
         }));
+        
         textInput.value = '';
+        
+        // Clear attached image after sending
+        if (currentAttachedImage) {
+            currentAttachedImage = null;
+            imagePreview.src = "";
+            imagePreviewContainer.style.display = 'none';
+            imageInput.value = "";
+        }
     }
 }
 

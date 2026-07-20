@@ -132,6 +132,19 @@ You may use the following exclusive Developer Actions:
 When asked to code, debug, or write scripts, USE THESE ACTIONS INSTEAD of opening VS Code via UI clicks.
 """
 
+        if "[IMAGE_ATTACHED:" in instruction:
+            import re
+            from src.vision import ask_moondream
+            match = re.search(r"\[IMAGE_ATTACHED: (.*?)\]", instruction)
+            if match:
+                img_path = match.group(1)
+                logger.info(f"Analyzing attached image: {img_path}")
+                try:
+                    analysis = ask_moondream("Describe everything you see in this image in detail, including any text, code, errors, or UI elements.", img_path)
+                    system_prompt += f"\n\n### ATTACHED IMAGE ANALYSIS ###\nThe user attached an image to this prompt. The Moondream Vision Model analyzed it and reported the following:\n{analysis}\nUse this visual context to satisfy the user's request.\n"
+                except Exception as e:
+                    logger.warning(f"Failed to analyze attached image: {e}")
+
         full_prompt = (
             f"{system_prompt}\n\n"
             f"Context: {context_summary}\n"

@@ -511,3 +511,15 @@ function checkWindowSize() {
 window.addEventListener('resize', checkWindowSize);
 // Initial check
 checkWindowSize();
+
+// Accordion Logic
+const groupHeaders = document.querySelectorAll('.group-header');
+groupHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        const content = header.nextElementSibling;
+        if (content && content.classList.contains('accordion-content')) {
+            content.classList.toggle('collapsed');
+        }
+    });
+});

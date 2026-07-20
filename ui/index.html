@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style_v9.css">
+    <link rel="stylesheet" href="style_v10.css">
 </head>
 <body>
 
@@ -125,28 +125,34 @@
                 <h3>Access Modes</h3>
                 
                 <div class="group-header">Automation Profiles</div>
-                <button class="toggle-btn" id="dev-mode-toggle" title="Developer Mode (Coding Assistant)"><i class="fa-solid fa-code"></i> Developer Mode</button>
-                <div id="dev-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
-                    <div style="display: flex; gap: 5px;">
-                        <input type="text" id="dev-folder-input" placeholder="e.g. C:\MyProject" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
-                        <button id="select-folder-btn" class="glass" title="Select Folder" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;"><i class="fa-solid fa-folder-open"></i></button>
+                <div class="accordion-content">
+                    <button class="toggle-btn" id="dev-mode-toggle" title="Developer Mode (Coding Assistant)"><i class="fa-solid fa-code"></i> Developer Mode</button>
+                    <div id="dev-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="dev-folder-input" placeholder="e.g. C:\MyProject" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
+                            <button id="select-folder-btn" class="glass" title="Select Folder" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;"><i class="fa-solid fa-folder-open"></i></button>
+                        </div>
+                    </div>
+                    
+                    <button class="toggle-btn" id="student-mode-toggle" title="Student Mode (AI Tutor)"><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
+                    <div id="student-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
+                        <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
                     </div>
                 </div>
-                
-                <button class="toggle-btn" id="student-mode-toggle" title="Student Mode (AI Tutor)"><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
-                <div id="student-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
-                    <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
-                </div>
 
-                <div class="group-header">Input Interfaces</div>
-                <button class="toggle-btn" id="dictate-toggle" title="Dictation Mode (Type with voice)"><i class="fa-solid fa-microphone-lines"></i> Dictate</button>
-                <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode (Record and Summarize)"><i class="fa-solid fa-users-viewfinder"></i> Meeting</button>
+                <div class="group-header collapsed">Input Interfaces</div>
+                <div class="accordion-content collapsed">
+                    <button class="toggle-btn" id="dictate-toggle" title="Dictation Mode (Type with voice)"><i class="fa-solid fa-microphone-lines"></i> Dictate</button>
+                    <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode (Record and Summarize)"><i class="fa-solid fa-users-viewfinder"></i> Meeting</button>
+                </div>
                 
-                <div class="group-header">System State</div>
-                <button class="mode-btn active" data-mode="BOTH" title="Full Ecosystem">Both</button>
-                <button class="mode-btn" data-mode="CAMERA_ONLY" title="Cursor Control Only">Camera</button>
-                <button class="mode-btn" data-mode="VOICE_ONLY" title="Voice Assistant Only">Voice</button>
-                <button class="mode-btn standby" data-mode="STANDBY" title="Standby Mode">Standby</button>
+                <div class="group-header collapsed">System State</div>
+                <div class="accordion-content collapsed">
+                    <button class="mode-btn active" data-mode="BOTH" title="Full Ecosystem">Both</button>
+                    <button class="mode-btn" data-mode="CAMERA_ONLY" title="Cursor Control Only">Camera</button>
+                    <button class="mode-btn" data-mode="VOICE_ONLY" title="Voice Assistant Only">Voice</button>
+                    <button class="mode-btn standby" data-mode="STANDBY" title="Standby Mode">Standby</button>
+                </div>
             </aside>
         </main>
 

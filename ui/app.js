@@ -142,7 +142,12 @@ function connectWebSocket() {
             chatLog.innerHTML = ""; // Clear existing log
             
             if (data.history.length === 0) {
-                appendMessage('SYSTEM', 'Connection established. System is online.');
+                const hour = new Date().getHours();
+                let greeting = "Good evening";
+                if (hour < 12) greeting = "Good morning";
+                else if (hour < 17) greeting = "Good afternoon";
+                
+                appendMessage('SYSTEM', `${greeting}, Developer! System is online and ready.`);
             } else {
                 data.history.forEach(msg => {
                     appendMessage(msg.sender, msg.text);
@@ -578,13 +583,14 @@ function logToTerminal(msg, type='info') {
     output.scrollTop = output.scrollHeight;
 }
 
-// Mock System Metrics
+// Mock System Metrics & Tokens
+let tokenCount = 4024;
 setInterval(() => {
+    // CPU/RAM
     const cpuVal = document.getElementById('cpu-val');
     const cpuBar = document.getElementById('cpu-bar');
     const ramVal = document.getElementById('ram-val');
     const ramBar = document.getElementById('ram-bar');
-    
     if (cpuVal && cpuBar) {
         const cpu = Math.floor(Math.random() * 30) + 5;
         cpuVal.textContent = `${cpu}%`;
@@ -595,7 +601,46 @@ setInterval(() => {
         ramVal.textContent = `${ram}GB`;
         ramBar.style.width = `${(ram / 32) * 100}%`;
     }
+    
+    // Tokens
+    const tokenFill = document.getElementById('token-bar-fill');
+    const tokenText = document.getElementById('token-count-text');
+    if (tokenFill && tokenText) {
+        tokenCount += Math.floor(Math.random() * 10);
+        const percent = ((tokenCount / 128000) * 100).toFixed(1);
+        tokenText.textContent = `${tokenCount.toLocaleString()} / 128,000 (${percent}%)`;
+        tokenFill.style.width = `${percent}%`;
+    }
 }, 2500);
+
+// Slash Commands Logic
+const commandInput = document.getElementById('text-command-input');
+const slashMenu = document.getElementById('slash-menu');
+if (commandInput && slashMenu) {
+    const slashItems = slashMenu.querySelectorAll('.slash-item');
+    commandInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (val.startsWith('/')) {
+            slashMenu.classList.add('active');
+            const search = val.toLowerCase();
+            slashItems.forEach(item => {
+                const cmd = item.getAttribute('data-val');
+                if (cmd.startsWith(search)) item.style.display = 'flex';
+                else item.style.display = 'none';
+            });
+        } else {
+            slashMenu.classList.remove('active');
+        }
+    });
+    
+    slashItems.forEach(item => {
+        item.addEventListener('click', () => {
+            commandInput.value = item.getAttribute('data-val') + " ";
+            slashMenu.classList.remove('active');
+            commandInput.focus();
+        });
+    });
+}
 
 // Macro Buttons Logic
 const macroBtns = document.querySelectorAll('.macro-btn');
@@ -605,6 +650,32 @@ const macroProgressText = document.getElementById('macro-progress-text');
 macroBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
+        
+        if (cmd === "generate-snippet") {
+            const snippetHtml = `
+            <div class="code-snippet">
+                <div class="code-header">
+                    <span>utils.js</span>
+                    <button class="copy-btn"><i class="fa-regular fa-copy"></i> Copy</button>
+                </div>
+                <pre class="code-body"><span class="token-keyword">export function</span> <span class="token-function">calculateEntropy</span>(data) {
+    <span class="token-keyword">let</span> entropy = 0;
+    <span class="token-keyword">for</span> (<span class="token-keyword">const</span> key <span class="token-keyword">in</span> data) {
+        <span class="token-keyword">const</span> p = data[key];
+        entropy -= p * Math.<span class="token-function">log2</span>(p);
+    }
+    <span class="token-keyword">return</span> entropy;
+}</pre>
+            </div>`;
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message system-msg`;
+            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${snippetHtml}</div>`;
+            document.getElementById('chat-log').appendChild(msgDiv);
+            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
+            return;
+        }
+
         if (macroProgress) {
             macroProgress.classList.add('active');
             let steps = ["Initializing automation...", "Executing tasks...", "Finalizing..."];

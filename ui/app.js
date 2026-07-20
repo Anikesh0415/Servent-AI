@@ -124,6 +124,19 @@ function connectWebSocket() {
         
         if (data.type === "CHAT_HISTORY") {
             chatLog.innerHTML = ""; // Clear existing log
+            
+            // Handle Persona from backend (overrides local storage)
+            if (data.persona) {
+                const personaModal = document.getElementById('persona-modal');
+                if (personaModal) personaModal.style.display = 'none';
+                localStorage.setItem('servent_persona', data.persona);
+                if (data.persona === 'accessibility') {
+                    document.body.classList.add('persona-accessibility');
+                } else {
+                    document.body.classList.remove('persona-accessibility');
+                }
+            }
+
             if (data.history.length === 0) {
                 appendMessage('SYSTEM', 'Connection established. Servent is online.');
             } else {

@@ -71,6 +71,26 @@ class AIF_Server:
         
         self.chat_history_file = os.path.join(os.path.dirname(__file__), "chat_history.json")
         self.chat_history = self._load_history()
+        
+        self.config_file = os.path.join(os.path.dirname(__file__), "config.json")
+        self.config = self._load_config()
+        self.fsm.current_context["persona"] = self.config.get("persona")
+
+    def _load_config(self):
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+
+    def _save_config(self):
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f)
+        except Exception as e:
+            print(f"Failed to save config: {e}")
 
     def _load_history(self):
         if os.path.exists(self.chat_history_file):
@@ -399,6 +419,9 @@ class AIF_Server:
                     elif cmd == "SET_PERSONA":
                         persona = payload.get("persona")
                         self.fsm.current_context["persona"] = persona
+                        self.config["persona"] = persona
+                        self._save_config()
+                        
                         print(f"Persona Set: {persona}")
                         # Auto-configure mode based on persona
                         if persona == 'accessibility':
@@ -461,7 +484,8 @@ class AIF_Server:
                     elif cmd == "GET_HISTORY":
                         await websocket.send(json.dumps({
                             "type": "CHAT_HISTORY",
-                            "history": self.chat_history
+                            "history": self.chat_history,
+                            "persona": self.config.get("persona")
                         }))
                 except asyncio.TimeoutError:
                     pass

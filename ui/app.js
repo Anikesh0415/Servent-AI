@@ -191,11 +191,18 @@ if (confirmBtn && rejectBtn) {
 
 // Text Input Logic
 function sendTextCommand() {
-    const text = textInput.value.trim();
+    let text = textInput.value.trim();
     if (text && ws && ws.readyState === WebSocket.OPEN) {
-        appendMessage('USER', text);
+        // Dev Mode Injection
+        const devToggle = document.getElementById('dev-mode-toggle');
+        if (devToggle && devToggle.classList.contains('active')) {
+            const devFolder = document.getElementById('dev-folder-input').value.trim() || "C:\\";
+            text = `[DEV_MODE: ${devFolder}] ${text}`;
+        }
+
+        appendMessage('USER', textInput.value.trim()); // Display clean text to user
         // Temporarily set lastVoiceText to avoid duping it when the server echoes it back
-        lastVoiceText = text;
+        lastVoiceText = textInput.value.trim();
         ws.send(JSON.stringify({
             command: "TEXT_INPUT",
             text: text
@@ -234,6 +241,20 @@ modeBtns.forEach(btn => {
 
 const dictateToggle = document.getElementById('dictate-toggle');
 const meetingToggle = document.getElementById('meeting-toggle');
+const devModeToggle = document.getElementById('dev-mode-toggle');
+const devModeConfig = document.getElementById('dev-mode-config');
+
+if (devModeToggle && devModeConfig) {
+    devModeToggle.addEventListener('click', () => {
+        devModeToggle.classList.toggle('active');
+        if (devModeToggle.classList.contains('active')) {
+            devModeConfig.style.display = 'flex';
+        } else {
+            devModeConfig.style.display = 'none';
+        }
+    });
+}
+
 let isDictating = false;
 let isMeeting = false;
 

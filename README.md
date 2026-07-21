@@ -1,88 +1,65 @@
-# Forge: Action Intelligence Framework (AIF)
+# Forge: Local, Multi-Modal Automation Agent
 
-Forge is a 100% local, privacy-first Windows OS automation agent. It enables users to control their operating systems entirely hands-free using natural voice commands and real-time hand gestures. By utilizing local reasoning models (Hermes 2 Pro) and vision models (Moondream), Forge autonomously plans and executes complex, multi-step actions on your computer, verifying the visual state of the screen at every step.
+Forge is a local, privacy-first Windows OS automation agent designed to help individuals control their computers using voice commands and hand gestures. 
 
-This framework is built with **accessibility** at its heart, providing physically challenged or motor-impaired individuals a way to fully operate their computers, write code, and build digital careers independently.
-
----
-
-## Key Features
-
-* **🎤 Hands-Free Voice Control:** Uses local OpenAI Whisper models to transcribe voice commands (e.g. *"open Gemini, write a letter, and send it to my friend on WhatsApp"*).
-* **🖐️ Real-Time Gesture Tracking:** Tracks hand coordinates and finger curls using MediaPipe to control mouse cursor movement, clicks, and page scrolling.
-* **🧠 Aria Planning Brain:** Uses **Hermes 2 Pro 8B** (via LM Studio) to convert abstract voice instructions into structured, step-by-step JSON plan arrays.
-* **🏗️ Hierarchical Macro-Orchestrator:** Intercepts massive 80+ action macro loops and acts as a Software Architect, dynamically orchestrating the LLM through setup, loop, and teardown logic without blowing the context window.
-* **👁️ VISTA Visual Verification:** Automatically captures screenshots and queries a local **Moondream** vision model to verify whether a page loaded or a loading animation has finished before proceeding.
-* **📚 Skill Library (RAG):** Dynamically injects context-specific examples into the prompt to prevent hallucination without breaking context limits.
-* **🪄 Semantic Copy & OCR Clicking:** Uses PyTesseract for native OCR-based clicking and leveraging Hermes to semantically extract and clean messy clipboard data in real-time.
-* **⚡ Native Accessibility & DOM Snapshotting:** Uses UIAutomation to instantaneously click desktop buttons and rips real-time DOM snapshots for perfect-context error recovery replanning.
-* **📱 Hybrid Remote Architecture:** Use your Android/iOS phone as a remote control. The Python backend broadcasts to your local Wi-Fi, allowing you to trigger complex Windows desktop automations from your couch using the mobile web app.
-* **🧠 Persistent Context Memory & Chat History:** Local persistent chat history drawer with dedicated settings to provide the AI with long-term user context across all sessions.
-* **🚦 Smart Intent Router:** Intelligently separates conversational chats, headless background API tasks, and physical GUI takeover actions to prevent workflow interruptions.
-* **🎓 Dynamic Student Focus Mode:** Transforms the UI into a dedicated study hub with interactive flashcards and notebook features.
-* **🛡️ Security Guardrails:** Intercepts vague intentions and actively blacklists destructive terminal commands before they can be executed.
-* **🔒 100% Local & Private:** No APIs, no cloud dependencies, no paywalls, and completely offline. Your data never leaves your machine.
+By tying together local reasoning models (Hermes 2 Pro via LM Studio) and multimodal visual verification (Moondream, PyTesseract), Forge provides hands-free, intelligent operation of the Windows desktop.
 
 ---
 
-## Architecture Flow
+## 🗺️ Architecture Flowchart
 
 ```mermaid
 graph TD
     User(("🗣️ User Request")) --> UI["💻 Ecosystem Control Center"]
     
-    subgraph Execution Routing
-        UI --> Router{"🚦 Smart Intent Router"}
-        Router -->|Conversational| ChatResponse["💬 Instant Chat Reply"]
-        Router -->|Background| HeadlessWorker["👻 Headless API Engine"]
-        Router -->|GUI Takeover| Macro["🏗️ Macro Orchestrator\n(Logic & Loops)"]
-        Router -->|Student Focus| StudentEngine["🎓 AI Tutor Engine"]
-    end
+    %% The Brain Injection
+    UI --> Macro["🏗️ Macro Orchestrator\n(Logic & Loops)"]
+    Macro -->|Dynamic Sub-Tasks| Planner{"🧠 ARIA Planner\n(Hermes 8B)"}
     
-    subgraph Headless Execution
-        HeadlessWorker --> FetchAPI["🌐 Background API Call\n(YouTube Transcript API)"]
-        FetchAPI --> LLMSummarize["🧠 Background LLM Summarize\n(Hermes 8B)"]
-        LLMSummarize --> UI
-    end
+    %% Memory Systems
+    SkillDB[("📚 Semantic Memory\n(RAG / skills.json)")] -.->|Injects Skills| Planner
+    EpisodicDB[("🧠 Episodic Memory\n(User Preferences)")] -.->|Injects OS Context| Planner
+    Plugins[("🔌 Dynamic Plugins\n(src/plugins/)")] -.->|Injects Capabilities| Planner
     
-    subgraph Tutor Execution
-        StudentEngine --> QuizGen["📝 Generate Interactive Quiz"]
-        StudentEngine --> FlashcardGen["📇 Generate Smart Flashcards"]
-    end
+    Planner -->|JSON Action Plan| AgentLoop(("⚙️ Central Agent Loop"))
     
-    subgraph GUI Takeover
-        Macro -->|Dynamic Sub-Tasks| Planner{"🧠 ARIA Planner\n(Hermes 8B)"}
-        SkillDB[("📚 Skill Library\n(RAG / skills.json)")] -.->|Injects Examples| Planner
-        
-        Planner -->|JSON Action Plan| AgentLoop(("⚙️ Central Agent Loop"))
-        
-        AgentLoop -->|Execute| ExecMgr["⚡ Execution Manager\n(PyAutoGUI / PyTesseract)"]
-        AgentLoop -->|Verify| VistaWait["👁️ VISTA Moondream\n(smart_wait_for_completion)"]
-        
-        VistaWait -.->|Wait Condition Met ✓| AgentLoop
-        
-        ExecMgr --> TargetApp["🖥️ Target App\n(WhatsApp, Web, etc.)"]
-        ExecMgr --> OCRClick["👀 OCR click_text"]
-        OCRClick --> TargetApp
-        ExecMgr --> SemanticCopy["🪄 Semantic Copy"]
-        SemanticCopy --> HermesFilter{"🧹 Hermes LLM\nData Cleaner"}
-        HermesFilter --> TargetApp
-    end
+    AgentLoop -->|Execute| ExecMgr["⚡ Execution Manager\n(PyAutoGUI / TTS)"]
+    AgentLoop -->|Verify| VistaWait["👁️ VISTA Moondream\n(smart_wait_for_completion)"]
+    
+    VistaWait -.->|Wait Condition Met ✓| AgentLoop
+    
+    %% OS Level Execution
+    ExecMgr --> TargetApp["🖥️ Target App\n(Windows OS)"]
+    
+    ExecMgr --> OCRClick["👀 OCR click_text"]
+    OCRClick --> TargetApp
+    
+    ExecMgr --> TTS["🗣️ Asynchronous TTS"]
+    TTS --> TargetApp
 ```
+
+---
+
+## Features (Phases 1-12)
+
+* **🧠 Multi-Stage Agentic Reasoning**: Uses **Hermes 2 Pro 8B** to convert complex voice instructions into structured JSON plans. Uses a Macro Orchestrator to break down massive tasks into logical loops.
+* **👁️ VISTA (Visual Verification)**: Uses a local Moondream vision model to verify OS states before proceeding (e.g., waiting for an app to load).
+* **🎯 Coordinate OCR**: Bypasses rigid UI rules by finding and clicking the exact `(x, y)` coordinates of any text on the screen using PyTesseract.
+* **📚 Semantic & Episodic Memory**: Self-heals by learning successful workflows and permanently storing user preferences and facts across sessions.
+* **🗣️ Asynchronous Local TTS**: Talks back naturally using a non-blocking background voice synthesizer.
+* **🔌 Dynamic Plugin Architecture**: Extensible design. Drop a `.py` script into `src/plugins/`, and the AI instantly learns how to use it.
+* **🔒 100% Local & Private**: No cloud APIs required. Your screen and data stay on your machine.
 
 ---
 
 ## Prerequisites & Installation
 
 ### 1. Set Up Local Models
-* **LM Studio:** Download and run [LM Studio](https://lmstudio.ai/). Load **`Hermes-2-Pro-Llama-3-8B-GGUF`** (or a similar function-calling model) and start the local API server on port `1234`.
-* **Ollama:** Install [Ollama](https://ollama.com/) and run the following in your terminal to pull the visual model:
-  ```bash
-  ollama pull moondream
-  ```
+* **LM Studio:** Download and run [LM Studio](https://lmstudio.ai/). Load a function-calling model like **`Hermes-2-Pro-Llama-3-8B-GGUF`** and start the local server on port `1234`.
+* **Ollama (Vision):** Install [Ollama](https://ollama.com/) and run `ollama pull moondream`.
 
 ### 2. Install Tesseract OCR
-For the visual `click_text` capabilities to work, you must install Tesseract:
+For visual capabilities to work, you must install Tesseract:
 * **Windows:** Download and install the [Tesseract-OCR executable](https://github.com/UB-Mannheim/tesseract/wiki). Ensure the installation path is added to your Windows Environment Variables.
 
 ### 3. Install Project Dependencies
@@ -93,32 +70,23 @@ For the visual `click_text` capabilities to work, you must install Tesseract:
    ```
 2. Activate your virtual environment and install dependencies:
    ```bash
+   python -m venv venv
    .\venv\Scripts\activate
    pip install -r requirements.txt
-   pip install pytesseract pyperclip
    ```
 
 ---
 
 ## Usage
 
-### Option 1: Desktop Master Interface
-1. Start your local model servers (LM Studio on port `1234` and Ollama on port `11434`).
-2. Run the bootstrapper script:
+1. Start your local model servers (LM Studio on port `1234`, Ollama).
+2. Run the server script:
    ```bash
-   Start_Ecosystem.bat
+   python server.py
    ```
-3. Open the locally served dashboard at `ui/index.html`.
-4. Speak a command (e.g., *"open Gemini, ask for a letter, and copy it..."*) or use hand gestures to control the cursor!
-
-### Option 2: Mobile Remote Control
-1. Ensure your PC and phone are on the same Wi-Fi network.
-2. Find your PC's IP Address (`ipconfig`).
-3. Run the Python backend (`python server.py`) which broadcasts on `0.0.0.0`.
-4. Host the `ui` folder on your PC (e.g., `python -m http.server 8000`).
-5. On your phone, visit `http://<YOUR_PC_IP>:8000/android.html` and connect to the brain to control your PC remotely!
+3. Open the locally served dashboard at `ui/index.html` (or run `Start_Ecosystem.bat`).
 
 ---
 
 ## Contributing & License
-Distributed under the MIT License. Feel free to open issues and pull requests to help make computing accessible for everyone!
+Distributed under the MIT License. Pull requests are welcome to help harden the system, build new plugins, and improve local execution!

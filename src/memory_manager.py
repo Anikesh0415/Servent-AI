@@ -2,13 +2,17 @@ import os
 import json
 import time
 
-MEMORY_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "long_term_memory.json")
+MEMORY_FILE_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "data", "long_term_memory.json"
+)
+
 
 class MemoryManager:
     """
     Unified Memory System for Forge.
     Manages Working Memory, Task Memory, Action History, and Long-Term Persistent Memory.
     """
+
     def __init__(self, max_history_size: int = 50):
         self.max_history_size = max_history_size
         self.working_memory = {}
@@ -17,7 +21,7 @@ class MemoryManager:
             "sub_goals": [],
             "plan_steps": [],
             "current_step_index": 0,
-            "status": "idle"
+            "status": "idle",
         }
         self.action_history = []
         self.long_term_memory = self._load_long_term_memory()
@@ -45,8 +49,9 @@ class MemoryManager:
             "plan_steps": plan_steps,
             "current_step_index": 0,
             "status": "in_progress",
-            "start_time": time.time()
+            "start_time": time.time(),
         }
+        self.abort_flag = False
 
     def update_task_step(self, step_index: int, status: str = "executing"):
         """Updates the current step index and status."""
@@ -59,7 +64,14 @@ class MemoryManager:
         self.task_memory["end_time"] = time.time()
 
     # --- ACTION HISTORY ---
-    def log_action(self, action_type: str, target: str, result: str, success: bool, verification_notes: str = ""):
+    def log_action(
+        self,
+        action_type: str,
+        target: str,
+        result: str,
+        success: bool,
+        verification_notes: str = "",
+    ):
         """Appends an executed action entry to rolling action history."""
         entry = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -67,9 +79,15 @@ class MemoryManager:
             "target": target,
             "result": result,
             "success": success,
-            "notes": verification_notes
+            "notes": verification_notes,
         }
         self.action_history.append(entry)
+
+        with open("logs/audit.log", "a", encoding="utf-8") as f:
+            f.write(
+                f"[{entry['timestamp']}] {action_type} -> {target} | Success: {success} | Note: {verification_notes}\n"
+            )
+
         if len(self.action_history) > self.max_history_size:
             self.action_history.pop(0)
 
@@ -86,20 +104,23 @@ class MemoryManager:
                 with open(MEMORY_FILE_PATH, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[MemoryManager] Warning: failed to load long term memory ({e}). Resetting.")
-        
+                print(
+                    f"[MemoryManager] Warning: failed to load long term memory ({e}). Resetting."
+                )
+
         # Default long-term preferences
         return {
             "preferred_browser": "chrome",
             "frequent_apps": {
                 "notepad": "notepad.exe",
                 "vscode": "code",
-                "calculator": "calc.exe"
+                "calculator": "calc.exe",
             },
             "user_preferences": {
                 "auto_confirm_safe_actions": True,
-                "voice_speed": "normal"
-            }
+                "voice_speed": "normal",
+            },
+            "episodic_facts": [],
         }
 
     def save_long_term_memory(self):
@@ -118,9 +139,17 @@ class MemoryManager:
         self.long_term_memory[category][key] = value
         self.save_long_term_memory()
 
+    def add_episodic_fact(self, fact: str):
+        """Adds a verified user fact to episodic memory."""
+        if "episodic_facts" not in self.long_term_memory:
+            self.long_term_memory["episodic_facts"] = []
+        if fact not in self.long_term_memory["episodic_facts"]:
+            self.long_term_memory["episodic_facts"].append(fact)
+            self.save_long_term_memory()
+
     def compile_learned_skill(self) -> str:
         """
-        Self-Healing Memory: Compiles the currently successful task plan into a new reusable 
+        Self-Healing Memory: Compiles the currently successful task plan into a new reusable
         skill block and appends it to data/skills.json automatically!
         """
         goal = self.task_memory.get("current_goal")
@@ -128,7 +157,9 @@ class MemoryManager:
         if not goal or not steps:
             return "No valid goal or steps to compile."
 
-        skill_file = os.path.join(os.path.dirname(__file__), "..", "data", "skills.json")
+        skill_file = os.path.join(
+            os.path.dirname(__file__), "..", "data", "skills.json"
+        )
         try:
             with open(skill_file, "r", encoding="utf-8") as f:
                 skills_db = json.load(f)
@@ -139,20 +170,41 @@ class MemoryManager:
         seq_lines = [f"When asked to {goal.lower()}, generate this exact sequence:"]
         for idx, step in enumerate(steps, 1):
             # Clean step of runtime IDs to make it a generic template
-            clean_step = {k: v for k, v in step.items() if k not in ["id", "confidence", "anchor_check", "description"]}
+            clean_step = {
+                k: v
+                for k, v in step.items()
+                if k not in ["id", "confidence", "anchor_check", "description"]
+            }
             seq_lines.append(f"{idx}. {json.dumps(clean_step)}")
-        
+
         new_skill = {
             "keywords": [goal.split()[0].lower(), "auto-learned", goal.lower()],
             "description": f"Auto-learned skill for: {goal}",
-            "example_sequence": "\n".join(seq_lines)
+            "example_sequence": "\n".join(seq_lines),
         }
-        
+
         skills_db.append(new_skill)
-        
+
         try:
             with open(skill_file, "w", encoding="utf-8") as f:
                 json.dump(skills_db, f, indent=4)
+
+            # Add to Vector Database for Semantic Memory
+            try:
+                from src.utils.skill_retriever import retriever
+
+                if retriever.collection:
+                    import uuid
+
+                    doc_id = str(uuid.uuid4())
+                    retriever.collection.add(
+                        documents=[new_skill["example_sequence"]],
+                        metadatas=[{"description": new_skill["description"]}],
+                        ids=[doc_id],
+                    )
+            except Exception as e:
+                print(f"[MemoryManager] Failed to add skill to ChromaDB: {e}")
+
             return f"Successfully learned and saved new skill for: '{goal}'"
         except Exception as e:
             return f"Error saving new skill: {e}"

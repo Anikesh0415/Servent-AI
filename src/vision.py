@@ -1,4 +1,3 @@
-import json
 import requests
 import time
 from src.screenshot import capture_screen_base64
@@ -10,7 +9,8 @@ from src.config import OLLAMA_API_URL, VISION_MODEL
 # CORE VISTA CALL
 # ---------------------------------------------------------------------------
 
-def vista_analyze(prompt: str, timeout: int = 30) -> str:
+
+def vista_analyze(prompt: str, timeout: int = 120) -> str:
     """
     Captures the screen and sends it to VISTA (Moondream) with the given prompt.
     Returns the raw text response from the vision model.
@@ -22,10 +22,8 @@ def vista_analyze(prompt: str, timeout: int = 30) -> str:
         "prompt": prompt,
         "images": [b64_image],
         "stream": False,
-        "keep_alive": -1,      # Keep Moondream pinned in RAM
-        "options": {
-            "temperature": 0.0
-        }
+        "keep_alive": "30s",  # Allow Moondream to unload to save VRAM
+        "options": {"temperature": 0.0},
     }
 
     try:
@@ -38,9 +36,11 @@ def vista_analyze(prompt: str, timeout: int = 30) -> str:
         logger.error(f"VISTA Error during vision analysis: {e}")
         return ""
 
+
 # ---------------------------------------------------------------------------
 # PRE-ACTION PREFLIGHT & POPUP DETECTION
 # ---------------------------------------------------------------------------
+
 
 def preflight_check(action_target: str = "") -> dict:
     """
@@ -53,25 +53,24 @@ def preflight_check(action_target: str = "") -> dict:
         "Is there an unexpected error popup, dialog box, or warning blocking the screen? "
         "Answer with POPUP_DETECTED: <description> or CLEAR."
     )
-    res = vista_analyze(prompt, timeout=15)
-    
+    # Capture a 5-second context to determine if they are reading or looking away
+    res = vista_analyze(prompt, timeout=120)
+
     if "POPUP_DETECTED" in res.upper():
         logger.warning(f"Preflight check detected obstacle: {res}")
         return {
             "clear_to_proceed": False,
             "popup_detected": True,
-            "popup_description": res
+            "popup_description": res,
         }
-        
-    return {
-        "clear_to_proceed": True,
-        "popup_detected": False,
-        "popup_description": ""
-    }
+
+    return {"clear_to_proceed": True, "popup_detected": False, "popup_description": ""}
+
 
 # ---------------------------------------------------------------------------
 # OCR / TEXT-BASED ELEMENT LOCATING
 # ---------------------------------------------------------------------------
+
 
 def ocr_screen_search(target_text: str) -> dict:
     """
@@ -84,21 +83,37 @@ def ocr_screen_search(target_text: str) -> dict:
         from PIL import Image
         import io
         import base64
-        
+
         b64_img = capture_screen_base64()
         img = Image.open(io.BytesIO(base64.b64decode(b64_img)))
-        extracted_text = pytesseract.image_to_string(img)
-        
-        found = target_text.lower() in extracted_text.lower()
-        return {"found": found, "text": extracted_text[:200]}
+
+        # Use image_to_data to get bounding boxes
+        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+        target_lower = target_text.lower()
+
+        for i, word in enumerate(data["text"]):
+            if word.strip() and target_lower in word.lower():
+                x = data["left"][i]
+                y = data["top"][i]
+                w = data["width"][i]
+                h = data["height"][i]
+                center_x = x + (w // 2)
+                center_y = y + (h // 2)
+                return {"found": True, "text": word, "coords": (center_x, center_y)}
+
+        return {"found": False, "text": "", "coords": None}
     except Exception:
         # Fallback to Moondream vision question
-        res = vista_analyze(f"Is the text or button '{target_text}' visible on screen? Answer YES or NO.")
-        return {"found": "YES" in res.upper(), "text": res}
+        res = vista_analyze(
+            f"Is the text or button '{target_text}' visible on screen? Answer YES or NO."
+        )
+        return {"found": "YES" in res.upper(), "text": res, "coords": None}
+
 
 # ---------------------------------------------------------------------------
 # POST-ACTION ANCHOR VERIFICATION
 # ---------------------------------------------------------------------------
+
 
 def verify_anchor(anchor_check: str) -> bool:
     """
@@ -121,14 +136,16 @@ def verify_anchor(anchor_check: str) -> bool:
         logger.warning(f"Ambiguous anchor response: '{response}' — defaulting to True")
         return True
 
+
 # ---------------------------------------------------------------------------
 # SMART WAIT
 # ---------------------------------------------------------------------------
 
+
 def smart_wait_for_completion(
     loading_indicator_question: str,
     max_wait_seconds: int = 60,
-    poll_interval: float = 3.0
+    poll_interval: float = 3.0,
 ) -> bool:
     """
     Polls VISTA every `poll_interval` seconds until loading is complete.
@@ -143,12 +160,15 @@ def smart_wait_for_completion(
             logger.info(f"SmartWait condition met after {elapsed:.1f}s.")
             return True
 
-        logger.info(f"SmartWait polling... ({elapsed:.1f}s elapsed). Moondream: '{is_met}'")
+        logger.info(
+            f"SmartWait polling... ({elapsed:.1f}s elapsed). Moondream: '{is_met}'"
+        )
         time.sleep(poll_interval)
         elapsed += poll_interval
 
     logger.warning(f"SmartWait timed out after {max_wait_seconds}s.")
     return False
+
 
 def verify_action_success(action_description: str) -> bool:
     """Legacy helper maintained for backward compatibility."""

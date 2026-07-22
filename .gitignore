@@ -31,3 +31,12 @@ package-lock.json
 *.bin
 *.onnx
 models/
+
+# Runtime Data & Logs
+logs/
+*.log
+chat_history.json
+ui/vision_capture.jpg
+data/chroma_db/
+data/long_term_memory.json
+

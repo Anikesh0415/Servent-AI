@@ -1,6 +1,7 @@
 from enum import Enum
 import time
 
+
 class SystemState(Enum):
     IDLE = 1
     LISTENING = 2
@@ -10,24 +11,25 @@ class SystemState(Enum):
     ERROR = 6
     AWAITING_CONFIRMATION = 7
 
+
 class AIF_StateMachine:
     def __init__(self):
         self.state = SystemState.IDLE
         self.current_context = {
             "voice_text": "",
             "gesture_coords": None,
-            "gesture_type": None
+            "gesture_type": None,
         }
-        
+
     def transition(self, new_state):
         print(f"[FSM] Transitioning: {self.state.name} -> {new_state.name}")
         self.state = new_state
-        
+
     def reset_context(self):
         self.current_context = {
             "voice_text": "",
             "gesture_coords": None,
-            "gesture_type": None
+            "gesture_type": None,
         }
 
     def update_context(self, voice_text=None, gesture_coords=None, gesture_type=None):
@@ -40,6 +42,7 @@ class AIF_StateMachine:
 
     def get_context(self):
         return self.current_context
+
 
 # Basic test
 if __name__ == "__main__":

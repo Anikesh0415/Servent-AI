@@ -1,28 +1,31 @@
-import pytesseract
 import easyocr
 from PIL import ImageGrab
 
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(["en"], gpu=False)
+
 
 def extract_screen_dna() -> dict:
     """Convert screen to compact JSON — no AI needed"""
     img = ImageGrab.grab()
-    
+
     # OCR — find all text with positions
     results = reader.readtext(img)
-    
+
     text_elements = [
-        {"text": r[1], "conf": r[2], 
-         "x": int(r[0][0][0]), "y": int(r[0][0][1]),
-         "w": int(r[0][2][0]-r[0][0][0]),
-         "h": int(r[0][2][1]-r[0][0][1])}
-        for r in results if r[2] > 0.5
+        {
+            "text": r[1],
+            "conf": r[2],
+            "x": int(r[0][0][0]),
+            "y": int(r[0][0][1]),
+            "w": int(r[0][2][0] - r[0][0][0]),
+            "h": int(r[0][2][1] - r[0][0][1]),
+        }
+        for r in results
+        if r[2] > 0.5
     ]
-    
-    return {
-        "all_text": [e["text"] for e in text_elements],
-        "raw": text_elements
-    }
+
+    return {"all_text": [e["text"] for e in text_elements], "raw": text_elements}
+
 
 def find_element(description: str, dna: dict) -> tuple:
     """Find x,y of element by description — no AI"""

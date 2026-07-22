@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Developer Automation Center</title>
+    <title>FORGE AI - Automation Center</title>
     <!-- Modern Clean Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Mermaid for Mindmaps -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
     <link rel="stylesheet" href="style_v16.css">
 </head>
 <body>
@@ -21,28 +24,14 @@
         <div style="padding: 0 16px;">
             <button class="new-chat-btn"><i class="fa-solid fa-pen-to-square"></i> New Chat</button>
         </div>
-        <div class="history-content">
-            <div class="history-group">
-                <div class="history-group-title">Today</div>
-                <div class="history-item active"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Vectors in Physics</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
-                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">YouTube Summarization</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
-            </div>
-            <div class="history-group">
-                <div class="history-group-title">Yesterday</div>
-                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">React UI Debugging</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
-                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Email Draft to Professor</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
-            </div>
-            <div class="history-group">
-                <div class="history-group-title">Previous 7 Days</div>
-                <div class="history-item"><div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;"><i class="fa-regular fa-message"></i> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Exam Prep Flashcards</span></div><i class="fa-solid fa-trash-can delete-chat-btn"></i></div>
-            </div>
+        <div class="history-content" id="history-content">
+            <!-- Dynamic History Sessions Rendered Here via JS -->
         </div>
     </div>
+
     <!-- Guaranteed Reliable Backgrounds -->
     <div class="video-container">
-        <!-- Space uses the CSS animated image -->
-        <div id="bg-image" class="animated-bg" style="background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop');"></div>
-        <!-- Real Videos use this tag -->
+        <div id="bg-image" class="animated-bg" style="background-image: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2048');"></div>
         <video autoplay muted loop playsinline id="bg-video" style="display: none;">
             <source src="" type="video/mp4">
         </video>
@@ -51,219 +40,247 @@
 
     <div class="dashboard">
         
-        <!-- Top Status Bar -->
-        <header class="top-bar glass">
-            <!-- Left: Sidebar Toggle and Sys Info -->
-            <div class="sys-info">
-                <button class="icon-btn" id="sidebar-toggle" style="margin-right: 24px;"><i class="fa-solid fa-bars"></i></button>
-                <div class="sys-state-wrapper">
-                    <span id="sys-state">Initializing Core...</span>
+        <!-- Left Sidebar - Unified Navigation & Tools -->
+        <aside id="quick-actions-panel" class="sidebar glass">
+            <!-- Sidebar Header & Toggles -->
+            <div class="sidebar-header">
+                <button class="icon-btn" id="sidebar-toggle" title="Menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="sys-state-wrapper offline">
+                    <i class="fa-solid fa-power-off"></i>
+                    <span id="sys-state">Offline</span>
                 </div>
+                <button id="qa-toggle-btn" class="icon-btn" title="Collapse"><i class="fa-solid fa-chevron-left"></i></button>
             </div>
-            
-            <!-- Center: Time and Theme -->
-            <div style="display: flex; gap: 20px; align-items: center;">
-                <div class="custom-dropdown glass" id="bg-dropdown">
-                    <div class="custom-dropdown-selected"><span id="bg-selected-text">Space Nebula</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
-                    <div class="custom-dropdown-options glass" id="bg-options-container">
-                        <div class="custom-dropdown-option" data-value="image|https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop">Space Nebula</div>
-                        <div class="custom-dropdown-option" data-value="video|assets/mountain.mp4">Mountain Scenery</div>
-                        <div class="custom-dropdown-option" data-value="video|assets/ocean.mp4">Ocean</div>
-                        <div class="custom-dropdown-option" data-value="video|assets/city.mp4">City Street</div>
-                    </div>
-                </div>
-                <div class="time-widget" id="time-widget">
-                    00:00 AM
-                </div>
-            </div>
-            
-            <!-- Right: Connection Status and Modes Toggle -->
-            <div style="display: flex; gap: 20px; align-items: center;">
-                <div class="system-metrics">
-                    <div class="metric cpu">
-                        <span class="metric-label">CPU <span id="cpu-val">14%</span></span>
-                        <div class="metric-bar-bg"><div class="metric-bar-fill" id="cpu-bar" style="width: 14%;"></div></div>
-                    </div>
-                    <div class="metric ram">
-                        <span class="metric-label">RAM <span id="ram-val">8GB</span></span>
-                        <div class="metric-bar-bg"><div class="metric-bar-fill" id="ram-bar" style="width: 25%;"></div></div>
-                    </div>
-                </div>
+
+            <!-- Workspace & System Metrics (Moved from Top Bar) -->
+            <div class="sidebar-metrics">
                 <div class="connection-status">
                     <div class="status-dot" id="status-dot"></div>
                     <span id="ws-status">Connecting</span>
                 </div>
-                <button class="icon-btn" id="settings-toggle" title="Settings"><i class="fa-solid fa-gear"></i></button>
-                <button class="icon-btn" id="modes-sidebar-toggle" title="Toggle Modes"><i class="fa-solid fa-sliders"></i></button>
+                <div class="system-metrics-mini">
+                    <span>CPU <span id="cpu-val">14%</span></span>
+                    <div class="metric-bar-bg"><div class="metric-bar-fill" id="cpu-bar" style="width: 14%;"></div></div>
+                    <span>RAM <span id="ram-val">8GB</span></span>
+                    <div class="metric-bar-bg"><div class="metric-bar-fill" id="ram-bar" style="width: 25%; background: linear-gradient(90deg, #0a84ff, #0a84ff);"></div></div>
+                </div>
             </div>
-        </header>
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <!-- Left Quick Actions Sidebar -->
-            <aside id="quick-actions-panel" class="quick-actions glass">
-                
-                <!-- DEVELOPER TOOLS (Default) -->
-                <div id="developer-tools-container">
-                    <div class="workspace-selector">
-                        <div class="custom-dropdown glass" id="workspace-dropdown" style="width: 100%;">
-                            <div class="custom-dropdown-selected"><span id="workspace-text">Frontend App</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
-                            <div class="custom-dropdown-options glass">
-                                <div class="custom-dropdown-option" data-value="frontend">Frontend App</div>
-                                <div class="custom-dropdown-option" data-value="backend">Backend API</div>
-                                <div class="custom-dropdown-option" data-value="mobile">Mobile App</div>
-                            </div>
-                        </div>
+            <div class="sidebar-scrollable">
+                <!-- Ecosystem Mode Selector (Camera Cursor / Voice / Both / Standby) -->
+                <div class="sidebar-section" style="margin-bottom: 16px;">
+                    <div class="group-header">Ecosystem Control</div>
+                    <div class="sidebar-grid">
+                        <button class="mode-btn toggle-btn" data-mode="BOTH" title="Full Ecosystem (Camera + Voice)"><i class="fa-solid fa-layer-group"></i> Both</button>
+                        <button class="mode-btn toggle-btn" data-mode="CAMERA_ONLY" title="Cursor Control Only"><i class="fa-solid fa-camera"></i> Camera</button>
+                        <button class="mode-btn toggle-btn" data-mode="VOICE_ONLY" title="Voice Assistant Only"><i class="fa-solid fa-microphone-lines"></i> Voice</button>
+                        <button class="mode-btn toggle-btn standby active" data-mode="STANDBY" title="Standby Mode"><i class="fa-solid fa-power-off"></i> Standby</button>
                     </div>
-                    
-                    <div class="group-header">Macro Automations</div>
-                    <button class="action-btn macro-btn" data-cmd="Clean and format the entire project according to linter rules."><i class="fa-solid fa-broom"></i> Format Project</button>
-                    <button class="action-btn macro-btn" data-cmd="Start the development server and open localhost in the browser."><i class="fa-solid fa-rocket"></i> Start Dev Server</button>
-                    <button class="action-btn macro-btn" data-cmd="Run the full unit test suite and report any failures."><i class="fa-solid fa-vial"></i> Run Test Suite</button>
-                    <button class="action-btn macro-btn" data-cmd="Compile and build the project for production deployment."><i class="fa-solid fa-box-open"></i> Build Production</button>
-                    <button class="action-btn macro-btn snippet-btn" data-cmd="generate-snippet"><i class="fa-solid fa-code"></i> Mock Code Snippet</button>
+                </div>
 
-                    <div class="group-header" style="margin-top: 16px;">Code Assistant</div>
+                <!-- Modes & Settings Toggles -->
+                <div class="sidebar-section">
+                    <div class="group-header">Modes & Tools</div>
+                    <div class="sidebar-grid">
+                        <button class="toggle-btn" id="dev-mode-btn" title="Dev Tools"><i class="fa-solid fa-code"></i> Developer</button>
+                        <button class="toggle-btn" id="student-mode-btn" title="Study Tools"><i class="fa-solid fa-graduation-cap"></i> Student</button>
+                        <button class="toggle-btn" id="dictate-toggle" title="Dictation"><i class="fa-solid fa-microphone"></i> Dictate</button>
+                        <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode"><i class="fa-solid fa-users"></i> Meeting</button>
+                    </div>
+                </div>
+
+                <!-- Hidden Config Inputs for Modes -->
+                <div id="dev-mode-config" style="display: none; padding-top: 10px;">
+                    <div class="group-header">Dev Directory</div>
+                    <input type="text" id="dev-folder-input" placeholder="e.g. C:\MyProject" class="glass-input">
+                </div>
+                <div id="student-mode-config" style="display: none; padding-top: 10px;">
+                    <div class="group-header">Study Source</div>
+                    <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass-input">
+                </div>
+
+                <!-- Developer Macro Automations -->
+                <div id="developer-tools-container" class="sidebar-section">
+                    <div class="group-header">Automations</div>
+                    <button class="action-btn macro-btn" data-cmd="Clean and format the entire project according to linter rules."><i class="fa-solid fa-broom"></i> Format Project</button>
+                    <button class="action-btn macro-btn" data-cmd="Start the development server and open localhost in the browser."><i class="fa-solid fa-rocket"></i> Start Server</button>
+                    <button class="action-btn macro-btn" data-cmd="Run the full unit test suite and report any failures."><i class="fa-solid fa-vial"></i> Run Tests</button>
+                    <button class="action-btn macro-btn snippet-btn" data-cmd="generate-snippet"><i class="fa-solid fa-code"></i> Snippet</button>
+
+                    <div class="group-header">Assistants</div>
                     <button class="action-btn" data-cmd="Switch to VS Code, read the code currently on my screen, and check it for any bugs or optimizations."><i class="fa-solid fa-file-code"></i> Review VS Code</button>
                     <button class="action-btn" data-cmd="Switch to Notepad, read the text currently open, and explain what it does or fix any errors."><i class="fa-solid fa-clipboard-list"></i> Check Notepad</button>
-                    <button class="action-btn" data-cmd="Look at the error message visible on my screen, search for a fix, and explain it to me."><i class="fa-solid fa-bug"></i> Debug Screen Error</button>
+                    <button class="action-btn" data-cmd="Look at the error message visible on my screen, search for a fix, and explain it to me."><i class="fa-solid fa-bug"></i> Debug Screen</button>
                 </div>
 
-                <!-- STUDENT TOOLS (Hidden by default) -->
-                <div id="student-tools-container" style="display: none;">
-                    <div class="group-header">Student Study Center</div>
-                    <button class="action-btn macro-btn" data-cmd="generate-handwritten"><i class="fa-solid fa-pen-nib"></i> Handwritten A4 Generator</button>
-                    <button class="action-btn macro-btn" data-cmd="generate-flashcard"><i class="fa-solid fa-layer-group"></i> Create Flashcards</button>
-                    <button class="action-btn macro-btn" data-cmd="launch-3d-sim"><i class="fa-solid fa-cubes"></i> 3D Diagram Explorer</button>
-                    <button class="action-btn macro-btn" data-cmd="generate-quiz"><i class="fa-solid fa-clipboard-question"></i> Generate Practice Quiz</button>
+                <!-- Student Study Tools -->
+                <div id="student-tools-container" class="sidebar-section" style="display: none;">
+                    <div class="group-header">Study Center</div>
+                    <button class="action-btn macro-btn" data-cmd="generate-handwritten"><i class="fa-solid fa-pen-nib"></i> A4 Generator</button>
+                    <button class="action-btn macro-btn" data-cmd="generate-flashcard"><i class="fa-solid fa-layer-group"></i> Flashcards</button>
+                    <button class="action-btn macro-btn" data-cmd="launch-3d-sim"><i class="fa-solid fa-cubes"></i> 3D Explorer</button>
+                    <button class="action-btn macro-btn" data-cmd="generate-quiz"><i class="fa-solid fa-clipboard-question"></i> Practice Quiz</button>
                 </div>
-            </aside>
+            </div>
+        </aside>
 
-            <!-- Center Chat Interface -->
-            <section class="chat-container glass">
-                <div class="macro-progress" id="macro-progress">
-                    <div class="progress-spinner"></div>
-                    <span class="progress-text" id="macro-progress-text">Executing automation...</span>
-                </div>
-
-                <div class="terminal-panel" id="terminal-panel">
-                    <div class="terminal-header">
-                        <span>Background Logs</span>
-                        <i class="fa-solid fa-terminal"></i>
+        <!-- Right Side - Main Chat Interface -->
+        <main class="chat-wrapper">
+            
+            <!-- Floating Top Right Info Pill -->
+            <div class="top-info-pill glass">
+                <div class="custom-dropdown" id="bg-dropdown">
+                    <div class="custom-dropdown-selected"><span id="bg-selected-text">Misty Mountains</span> <i class="fa-solid fa-chevron-down"></i></div>
+                    <div class="custom-dropdown-options">
+                        <div class="custom-dropdown-option" data-value="image|https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2048">Misty Mountains</div>
+                        <div class="custom-dropdown-option" data-value="image|https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2048">Cyberpunk City</div>
+                        <div class="custom-dropdown-option" data-value="image|https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=2048">Northern Aurora</div>
+                        <div class="custom-dropdown-option" data-value="image|https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?q=80&w=2048">Sunset Peaks</div>
+                        <div class="custom-dropdown-option" data-value="gradient|linear-gradient(135deg, #0f2027, #203a43, #2c5364)">Dark Aurora</div>
                     </div>
+                </div>
+                <div class="time-widget" id="time-widget">00:00 AM</div>
+                <div class="pomodoro-widget" id="pomodoro-widget"><i class="fa-solid fa-clock"></i> <span id="pomodoro-text">25:00</span></div>
+                <button class="icon-btn" id="top-settings-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+            </div>
+
+            <!-- Main Chat Container -->
+            <section class="chat-container">
+                
+                <!-- Terminal Panel (Hidden until needed) -->
+                <div class="terminal-panel glass" id="terminal-panel" style="display:none;">
+                    <div class="terminal-header"><span>Background Logs</span><i class="fa-solid fa-terminal"></i></div>
                     <div class="terminal-output" id="terminal-output">
-                        <div class="term-line">Initializing shell environment...</div>
                         <div class="term-line">System ready.</div>
                     </div>
                 </div>
-
-                <div class="chat-header" style="justify-content: flex-end;">
-                    <div class="audio-dropdown-container">
-                        <button class="icon-btn" id="tts-toggle" title="Audio Options"><i class="fa-solid fa-volume-high"></i></button>
-                    </div>
-                </div>
-
+                
+                <!-- Chat Messages Area -->
                 <div class="chat-log" id="chat-log">
                     <div class="message system-msg">
                         <div class="msg-bubble">System Online. Ready for input.</div>
                     </div>
                 </div>
-                
-                <div class="input-area">
-                    <div class="token-monitor" id="token-monitor">
-                        <span>Context Usage</span>
-                        <div class="token-bar-bg"><div class="token-bar-fill" id="token-bar-fill"></div></div>
-                        <span id="token-count-text">4,024 / 128,000 (3%)</span>
+
+                <!-- Bottom Dock for Inputs -->
+                <div class="bottom-dock">
+                    <!-- Action Confirmation & Status -->
+                    <div class="input-actions-layer">
+                        <div class="action-status">
+                            <i class="fa-solid fa-bolt" style="color: #ffd60a;"></i>
+                            <span id="action-text">STANDBY</span>
+                        </div>
+
+                        <div class="confirmation-wrapper" id="confirmation-wrapper" style="display: none;">
+                            <button class="confirm-btn" id="confirm-btn"><i class="fa-solid fa-check"></i> Confirm Plan</button>
+                            <button class="replan-btn" id="replan-btn"><i class="fa-solid fa-arrows-rotate"></i> Replan</button>
+                            <button class="reject-btn" id="reject-btn"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                        </div>
                     </div>
-                    <div class="action-status">
-                        <i class="fa-solid fa-bolt" style="color: #ffd60a;"></i>
-                        <span id="action-text">STANDBY</span>
-                    </div>
-                    <div class="confirmation-wrapper" id="confirmation-wrapper" style="display: none; gap: 15px; width: 100%; margin-top: 5px;">
-                        <button class="confirm-btn glass-btn" id="confirm-btn" style="background: rgba(46, 204, 113, 0.25); border: 1px solid #2ecc71; color: #2ecc71; padding: 12px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; font-family: inherit; transition: 0.2s;"><i class="fa-solid fa-check"></i> Confirm Plan</button>
-                        <button class="replan-btn glass-btn" id="replan-btn" style="background: rgba(243, 156, 18, 0.25); border: 1px solid #f39c12; color: #f39c12; padding: 12px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; font-family: inherit; transition: 0.2s;"><i class="fa-solid fa-arrows-rotate"></i> Replan</button>
-                        <button class="reject-btn glass-btn" id="reject-btn" style="background: rgba(231, 76, 60, 0.25); border: 1px solid #e74c3c; color: #e74c3c; padding: 12px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; font-family: inherit; transition: 0.2s;"><i class="fa-solid fa-xmark"></i> Cancel Plan</button>
-                    </div>
-                    <div class="input-wrapper" id="input-wrapper" style="position: relative;">
-                        <!-- Slash Menu -->
-                        <div class="slash-menu" id="slash-menu">
-                            <div class="slash-item" data-val="/deploy">
-                                <div class="slash-icon"><i class="fa-solid fa-rocket"></i></div>
-                                <div class="slash-text"><span class="slash-name">/deploy</span><span class="slash-desc">Deploy to staging server</span></div>
+
+                    <!-- Floating Bottom Input Bar -->
+                    <div class="floating-input-bar">
+                        <!-- Context Usage Pill on the left side of textbar -->
+                        <div class="token-monitor" id="token-monitor" title="Context Window Usage">
+                            <i class="fa-solid fa-microchip" style="color: #38bdf8; font-size: 0.75rem;"></i>
+                            <span id="token-count-text" style="font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.75); white-space: nowrap;">4,024 / 128k (3%)</span>
+                            <div class="token-bar-bg" style="width: 32px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; margin-left: 2px;"><div class="token-bar-fill" id="token-bar-fill" style="width:3%; height:100%; background: #38bdf8;"></div></div>
+                        </div>
+
+                        <div class="input-wrapper glass" id="input-wrapper">
+                            <!-- Slash Menu -->
+                            <div class="slash-menu" id="slash-menu">
+                                <div class="slash-item" data-val="/deploy"><div class="slash-icon"><i class="fa-solid fa-rocket"></i></div><div class="slash-text"><span class="slash-name">/deploy</span><span class="slash-desc">Deploy to staging server</span></div></div>
                             </div>
-                            <div class="slash-item" data-val="/test">
-                                <div class="slash-icon"><i class="fa-solid fa-vial"></i></div>
-                                <div class="slash-text"><span class="slash-name">/test</span><span class="slash-desc">Run all unit tests</span></div>
+                            
+                            <!-- Upload Image UI -->
+                            <button class="icon-btn input-tool-btn" id="upload-image-btn" title="Attach Image"><i class="fa-solid fa-paperclip"></i></button>
+                            <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
+                            <div id="image-preview-container" style="display: none;">
+                                <img id="image-preview" src="" alt="preview">
+                                <button id="remove-image-btn"><i class="fa-solid fa-xmark"></i></button>
                             </div>
-                            <div class="slash-item" data-val="/summarize">
-                                <div class="slash-icon"><i class="fa-solid fa-align-left"></i></div>
-                                <div class="slash-text"><span class="slash-name">/summarize</span><span class="slash-desc">Summarize recent logs</span></div>
+                            
+                            <button class="icon-btn input-tool-btn" id="tts-toggle" title="Audio Output"><i class="fa-solid fa-volume-high"></i></button>
+                            <button class="icon-btn input-tool-btn" id="terminal-toggle" title="Toggle Terminal"><i class="fa-solid fa-code"></i></button>
+
+                            <input type="text" id="text-command-input" placeholder="Type a command or ask a question..." autocomplete="off">
+                            
+                            <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Compact Bullet Train Engine Tracker (Positioned under text prompt area) -->
+                    <div class="macro-progress" id="macro-progress">
+                        <div class="train-container">
+                            <div class="train-track-line">
+                                <div class="track-pulse"></div>
+                            </div>
+                            <div class="train-station station-1 active" id="station-1">
+                                <div class="station-dot"></div>
+                                <div class="station-label">Planning</div>
+                            </div>
+                            <div class="train-station station-2" id="station-2">
+                                <div class="station-dot"></div>
+                                <div class="station-label">Executing</div>
+                            </div>
+                            <div class="train-station station-3" id="station-3">
+                                <div class="station-dot"></div>
+                                <div class="station-label">Verifying</div>
+                            </div>
+                            <div class="train-station station-4" id="station-4">
+                                <div class="station-dot"></div>
+                                <div class="station-label">Complete</div>
+                            </div>
+                            
+                            <!-- Sleek Bullet Train Engine with Air Shockwaves -->
+                            <div class="train-engine-wrapper" id="progress-train" style="left: 12%;">
+                                <div class="air-cutting-fx">
+                                    <span class="air-wave w1"></span>
+                                    <span class="air-wave w2"></span>
+                                    <span class="air-wave w3"></span>
+                                </div>
+                                <svg class="bullet-train-svg" viewBox="0 0 100 30" width="20" height="9">
+                                    <polygon points="85,15 100,8 100,22" fill="rgba(56, 189, 248, 0.5)" class="light-beam" />
+                                    <path d="M 5 22 L 12 10 Q 30 5 60 5 L 85 10 Q 98 15 98 18 Q 98 21 85 22 L 12 22 Z" fill="url(#bulletGrad)" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+                                    <path d="M 8 18 L 92 18" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M 72 10 Q 88 13 92 16 L 78 16 Z" fill="#00f2fe" opacity="0.9" />
+                                    <circle cx="96" cy="17" r="1.5" fill="#ffffff" />
+                                    <line x1="10" y1="24" x2="90" y2="24" stroke="#34c759" stroke-width="1.5" stroke-dasharray="4,2" class="mag-rail" />
+                                    <defs>
+                                        <linearGradient id="bulletGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="#0f172a" />
+                                            <stop offset="50%" stop-color="#1e293b" />
+                                            <stop offset="100%" stop-color="#0284c7" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
                             </div>
                         </div>
-                        <button class="icon-btn" id="upload-image-btn" title="Attach Image"><i class="fa-solid fa-paperclip"></i></button>
-                        <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
-                        <div id="image-preview-container" style="display: none; align-items: center; background: rgba(0,0,0,0.5); padding: 2px 5px; border-radius: 4px; margin-right: 10px;">
-                            <img id="image-preview" src="" alt="preview" style="max-height: 24px; border-radius: 4px; margin-right: 5px;">
-                            <button id="remove-image-btn" style="background: none; border: none; color: #ff3b30; cursor: pointer; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <input type="text" id="text-command-input" placeholder="Type an automation command..." autocomplete="off">
-                        <button class="icon-btn" id="terminal-toggle" title="Toggle Terminal" style="margin-right: 10px;"><i class="fa-solid fa-code"></i></button>
-                        <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                        <div class="progress-status-text" id="macro-progress-text">Engine Standby - Ready for Task</div>
                     </div>
                 </div>
+                
             </section>
-
-            <!-- Modes Access Sidebar -->
-            <aside id="modes-panel" class="modes-panel glass">
-                <h3>Access Modes</h3>
-                
-                <div class="group-header">Current Context</div>
-                <div class="context-file-list">
-                    <div class="context-file-item active" data-file="app.js">
-                        <i class="fa-brands fa-js"></i>
-                        <span>app.js</span>
-                    </div>
-                    <div class="context-file-item" data-file="index.html">
-                        <i class="fa-brands fa-html5"></i>
-                        <span>index.html</span>
-                    </div>
-                    <div class="context-file-item" data-file="style.css">
-                        <i class="fa-brands fa-css3-alt"></i>
-                        <span>style.css</span>
-                    </div>
-                </div>
-
-                <div class="group-header">Automation Profiles</div>
-                <div class="accordion-content">
-                    <button class="toggle-btn" id="dev-mode-btn" data-cmd="Switch to Developer Mode and load development tools."><i class="fa-solid fa-code"></i> Developer Mode</button>
-                    <div id="dev-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
-                        <div style="display: flex; gap: 5px;">
-                            <input type="text" id="dev-folder-input" placeholder="e.g. C:\MyProject" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
-                            <button class="icon-btn" id="dev-folder-browse" style="border-radius: 4px; padding: 0 10px;"><i class="fa-regular fa-folder-open"></i></button>
-                        </div>
-                    </div>
-                    <button class="toggle-btn" id="student-mode-btn" data-cmd="Switch to Student Mode and load study tools."><i class="fa-solid fa-graduation-cap"></i> Student Mode</button>
-                    <div id="student-mode-config" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 15px;">
-                        <input type="text" id="student-url-input" placeholder="YouTube URL or File Path" class="glass" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; flex: 1;">
-                    </div>
-                </div>
-
-                <div class="group-header collapsed">Input Interfaces</div>
-                <div class="accordion-content collapsed">
-                    <button class="toggle-btn" id="dictate-toggle" title="Dictation Mode (Type with voice)"><i class="fa-solid fa-microphone-lines"></i> Dictate</button>
-                    <button class="toggle-btn" id="meeting-toggle" title="Meeting Mode (Record and Summarize)"><i class="fa-solid fa-users-viewfinder"></i> Meeting</button>
-                </div>
-                
-                <div class="group-header collapsed">System State</div>
-                <div class="accordion-content collapsed">
-                    <button class="mode-btn active" data-mode="BOTH" title="Full Ecosystem">Both</button>
-                    <button class="mode-btn" data-mode="CAMERA_ONLY" title="Cursor Control Only">Camera</button>
-                    <button class="mode-btn" data-mode="VOICE_ONLY" title="Voice Assistant Only">Voice</button>
-                    <button class="mode-btn standby" data-mode="STANDBY" title="Standby Mode">Standby</button>
-                </div>
-            </aside>
         </main>
 
+        <!-- Right Side - Collapsible Context Files Sidebar -->
+        <aside id="context-sidebar" class="sidebar glass right-sidebar">
+            <div class="sidebar-header">
+                <button id="context-toggle-btn" class="icon-btn" title="Toggle Context Sidebar"><i class="fa-solid fa-folder-open"></i></button>
+                <div class="sys-state-wrapper" style="color: var(--text-dim); text-shadow: none;">
+                    <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Context</span>
+                </div>
+            </div>
+            <div class="sidebar-scrollable" style="padding: 16px;">
+                <div class="group-header">Active Workspace Files</div>
+                <div class="context-file-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="context-file-item active" data-file="app.js"><i class="fa-brands fa-js"></i> app.js</div>
+                    <div class="context-file-item" data-file="index.html"><i class="fa-brands fa-html5"></i> index.html</div>
+                    <div class="context-file-item" data-file="style.css"><i class="fa-brands fa-css3-alt"></i> style.css</div>
+                </div>
+            </div>
+        </aside>
     </div>
     
     <!-- Settings Modal -->
@@ -275,67 +292,74 @@
             </div>
             
             <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
-                <label>Text-To-Speech Voice</label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Text-To-Speech Voice</label>
                 <div class="custom-dropdown glass" id="voice-dropdown-ui" style="width: 100%;">
-                    <div class="custom-dropdown-selected"><span id="voice-selected-text">Loading voices...</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.8em; opacity: 0.7;"></i></div>
-                    <div class="custom-dropdown-options glass" id="voice-options-container">
+                    <div class="custom-dropdown-selected"><span id="voice-selected-text">Loading voices...</span> <i class="fa-solid fa-chevron-down"></i></div>
+                    <div class="custom-dropdown-options" id="voice-options-container">
                         <div class="custom-dropdown-option" data-value="">Loading voices...</div>
                     </div>
                 </div>
             </div>
             
             <div class="setting-group">
-                <label>Auto-Confirm Actions</label>
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider"></span>
-                </label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Auto-Confirm Actions</label>
+                <label class="switch"><input type="checkbox" id="auto-confirm-toggle"><span class="slider"></span></label>
             </div>
             <div class="setting-group">
-                <label>Silent Mode</label>
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider"></span>
-                </label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Silent Mode</label>
+                <label class="switch"><input type="checkbox" id="silent-mode-toggle"><span class="slider"></span></label>
             </div>
             <div class="setting-group">
-                <label>Debug Logging</label>
-                <label class="switch">
-                    <input type="checkbox" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            
-            <div class="group-header" style="margin-top: 20px; font-size: 0.8rem;">Execution Engine</div>
-            <div class="setting-group">
-                <label>Headless Mode (Run in Background)</label>
-                <label class="switch">
-                    <input type="checkbox" id="headless-mode-toggle" checked>
-                    <span class="slider"></span>
-                </label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Debug Logging</label>
+                <label class="switch"><input type="checkbox" id="debug-logging-toggle"><span class="slider"></span></label>
             </div>
 
-            <div class="group-header" style="margin-top: 20px; font-size: 0.8rem;">Long-Term Memory</div>
+            <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Execution Engine</label>
+                <select class="glass-input" style="width:100%; padding: 10px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <option>Gemini 3.1 Pro (High)</option>
+                    <option>Gemini 3.6 Flash (Medium)</option>
+                </select>
+            </div>
+
             <div class="setting-group">
-                <label>Remember User Profile</label>
-                <label class="switch">
-                    <input type="checkbox" checked>
-                    <span class="slider"></span>
-                </label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Headless Mode (Run In Background)</label>
+                <label class="switch"><input type="checkbox" id="headless-mode-toggle" checked><span class="slider"></span></label>
             </div>
-            <div class="setting-group" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <label>User Context / Profile Data</label>
-                <textarea id="user-context-input" class="glass" style="width: 100%; height: 80px; padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff; font-family: inherit; font-size: 0.85rem; resize: vertical;" placeholder="E.g. I am a high school student learning Physics..."></textarea>
+
+            <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Long-Term Memory</label>
+                <select class="glass-input" style="width:100%; padding: 10px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <option>Enabled (Pinecone Vector DB)</option>
+                    <option>Disabled (Session Only)</option>
+                </select>
             </div>
+
             <div class="setting-group">
-                <label>Remember Code Preferences</label>
-                <label class="switch">
-                    <input type="checkbox" checked>
-                    <span class="slider"></span>
-                </label>
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Remember User Profile</label>
+                <label class="switch"><input type="checkbox" id="remember-user-toggle" checked><span class="slider"></span></label>
             </div>
-            <button class="reject-btn glass-btn" style="width: 100%; margin-top: 10px; padding: 10px; border-radius: 8px; border: 1px solid #e74c3c; background: rgba(231, 76, 60, 0.2); color: #e74c3c; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-trash-can"></i> Clear Memory Bank</button>
+
+            <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">User Context / Profile Data</label>
+                <textarea class="glass-input" rows="3" style="width:100%; padding: 10px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--glass-border); border-radius: 8px; resize: none; font-family: inherit;" placeholder="E.g. I am a high school student learning Physics..."></textarea>
+            </div>
+
+            <div class="setting-group">
+                <label style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem;">Remember Code Preferences</label>
+                <label class="switch"><input type="checkbox" id="remember-code-toggle" checked><span class="slider"></span></label>
+            </div>
+
+            <button style="width: 100%; margin-top: 15px; background: rgba(255,59,48,0.15); border: 1px solid #ff3b30; color: #ff3b30; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; display:flex; justify-content:center; align-items:center; gap:8px; transition: 0.3s;" onmouseover="this.style.background='rgba(255,59,48,0.3)'" onmouseout="this.style.background='rgba(255,59,48,0.15)'">
+                <i class="fa-solid fa-trash-can"></i> Clear Memory Bank
+            </button>
             
+            <!-- Hide elements that might break JS if completely removed -->
+            <div style="display: none;">
+                <button id="modes-sidebar-toggle"></button>
+                <div id="modes-panel"></div>
+                <div class="top-bar"></div>
+            </div>
         </div>
     </div>
 

@@ -1,4 +1,5 @@
 import time
+import asyncio
 from src.planner import generate_plan, replan_failed_step, planner_instance
 from src.vision import verify_anchor, smart_wait_for_completion, preflight_check
 from src.context_manager import ContextManager
@@ -18,7 +19,7 @@ memory_mgr  = MemoryManager()
 exec_mgr    = ExecutionManager()
 
 
-def plan_task(instruction: str, update_callback=None) -> list:
+async def plan_task(instruction: str, update_callback=None) -> list:
     """
     Generates the ARIA plan using multi-stage planning and OS context.
     """
@@ -27,35 +28,35 @@ def plan_task(instruction: str, update_callback=None) -> list:
         if update_callback:
             update_callback(msg)
 
-    notify(f"Analyzing instruction: '{instruction}'...")
+    notify(f"[TRACE] Analyzing instruction: '{instruction}'...")
 
     # Get active OS context summary for planner
     ctx_summary = context_mgr.get_summary_prompt_context()
-    plan = planner_instance.generate_action_plan(instruction, ctx_summary)
+    plan = await planner_instance.generate_action_plan(instruction, ctx_summary)
 
     # Re-plan if too few steps for complex requests
-    complex_kw = ["and", "then", "copy", "send", "open", "paste"]
+    complex_kw = ["and", "then", "copy", "send", "paste"]
     is_complex = any(kw in instruction.lower() for kw in complex_kw)
     
     if plan and is_complex and len(plan) < 4:
-        notify(f"⚠️ Only {len(plan)} steps generated for complex task — re-planning stricter...")
-        plan = planner_instance.generate_action_plan(
+        notify(f"[TRACE] ⚠️ Only {len(plan)} steps generated for complex task — re-planning stricter...")
+        plan = await planner_instance.generate_action_plan(
             instruction + " [IMPORTANT: This requires multiple apps/actions, list ALL steps]",
             ctx_summary
         )
 
     if not plan:
-        notify("ARIA failed to generate a plan.")
+        notify("[TRACE] ARIA failed to generate a plan.")
         return []
 
     # Store plan in memory
     memory_mgr.initialize_task(instruction, plan)
 
-    notify(f"ARIA plan generated: {len(plan)} step(s).")
+    notify(f"[TRACE] ARIA plan generated: {len(plan)} step(s).")
     return plan
 
 
-def execute_task_plan(plan: list, update_callback=None) -> bool:
+async def execute_task_plan(plan: list, update_callback=None) -> bool:
     """
     Executes the generated ARIA plan using the Observe -> Execute -> Verify -> Reflect -> Replan loop.
     """
@@ -65,10 +66,10 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
             update_callback(msg)
 
     if not plan:
-        notify("No plan to execute.")
+        notify("[TRACE] No plan to execute.")
         return False
 
-    notify(f"Starting execution of {len(plan)} step(s)...")
+    notify(f"[TRACE] Starting execution of {len(plan)} step(s)...")
 
     for idx, step in enumerate(plan):
         action_type  = step.get("action", "").lower()
@@ -76,12 +77,12 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
         anchor_check = step.get("anchor_check", "")
 
         memory_mgr.update_task_step(idx, status="executing")
-        notify(f"Step {idx+1}/{len(plan)}: {action_type} ({target})")
+        notify(f"[TRACE] Step {idx+1}/{len(plan)}: {action_type} ({target})")
 
         # ── 1. OBSERVE & PREFLIGHT ──────────────────────────────────────────
         pre_res = preflight_check(target)
         if not pre_res["clear_to_proceed"]:
-            notify(f"⚠️ Preflight Warning: {pre_res['popup_description']}")
+            notify(f"[TRACE] ⚠️ Preflight Warning: {pre_res['popup_description']}")
 
         # ── 1.5. SAFETY GUARDRAIL ───────────────────────────────────────────
         def is_safe_action(action: str, tgt: str) -> bool:
@@ -92,105 +93,105 @@ def execute_task_plan(plan: list, update_callback=None) -> bool:
             return True
             
         if not is_safe_action(action_type, target):
-            notify(f"🛑 SECURITY ALERT: Blocked destructive action '{target}'")
+            notify(f"[TRACE] 🛑 SECURITY ALERT: Blocked destructive action '{target}'")
             memory_mgr.log_action(action_type, str(target), "Blocked by Safety Guardrail", False)
             memory_mgr.complete_task(success=False)
             return False
 
         # ── 2. EXECUTE ──────────────────────────────────────────────────────
         try:
-            success, exec_msg = exec_mgr.execute_step(step)
+            success, exec_msg = await exec_mgr.execute_step(step)
         except Exception as e:
             success, exec_msg = False, f"Crash during execution: {e}"
             
         if not success:
-            notify(f"Action execution warning: {exec_msg}")
+            notify(f"[TRACE] Action execution warning: {exec_msg}")
         elif action_type.startswith("background_") or action_type == "summarize_youtube":
-            notify(f"Result: {exec_msg}")
+            notify(f"[ANSWER] {exec_msg}")
 
         # ── 3. VERIFY ───────────────────────────────────────────────────────
         NO_VERIFY = {"scroll", "copy_all", "paste", "speak", "wait_until", "hover_element", "read_file", "write_file", "run_terminal", "summarize_youtube", "generate_study_html", "search_knowledge_base"}
         if action_type in NO_VERIFY or not anchor_check:
-            time.sleep(ACTION_PAUSE)
+            await asyncio.sleep(ACTION_PAUSE)
             memory_mgr.log_action(action_type, str(target), exec_msg, True, "No verification needed")
             continue
 
         if action_type in {"open_app", "open_browser"}:
-            notify(f"Waiting {APP_OPEN_WAIT}s for page/app to load...")
-            time.sleep(APP_OPEN_WAIT)
+            notify(f"[TRACE] Waiting {APP_OPEN_WAIT}s for page/app to load...")
+            await asyncio.sleep(APP_OPEN_WAIT)
             max_retries = OPEN_APP_MAX_RETRIES
         else:
-            time.sleep(ACTION_PAUSE)
+            await asyncio.sleep(ACTION_PAUSE)
             max_retries = 1
 
         verified = False
         
         for attempt in range(max_retries):
-            notify(f"VISTA anchor check (attempt {attempt+1}/{max_retries}): '{anchor_check}'")
+            notify(f"[TRACE] VISTA anchor check (attempt {attempt+1}/{max_retries}): '{anchor_check}'")
             try:
                 anchor_met = verify_anchor(anchor_check)
             except Exception as e:
-                notify(f"VISTA check crashed: {e}")
+                notify(f"[TRACE] VISTA check crashed: {e}")
                 anchor_met = False
                 
             if anchor_met:
-                notify("Anchor confirmed ✓")
+                notify("[TRACE] Anchor confirmed ✓")
                 verified = True
                 memory_mgr.log_action(action_type, str(target), exec_msg, True, "Anchor confirmed")
                 break
             else:
                 if attempt < max_retries - 1:
-                    notify(f"Anchor not yet visible, retrying in {OPEN_APP_RETRY_DELAY}s...")
-                    time.sleep(OPEN_APP_RETRY_DELAY)
+                    notify(f"[TRACE] Anchor not yet visible, retrying in {OPEN_APP_RETRY_DELAY}s...")
+                    await asyncio.sleep(OPEN_APP_RETRY_DELAY)
                     try:
-                        exec_mgr.execute_step(step)
+                        await exec_mgr.execute_step(step)
                     except Exception:
                         pass
 
         # ── 4. REFLECT & REPLAN ─────────────────────────────────────────────
         if not verified:
-            notify(f"Step {idx+1} verification failed. Initiating Reflection & Replanning...")
+            notify(f"[TRACE] Step {idx+1} verification failed. Initiating Reflection & Replanning...")
             error_reason = f"Anchor check '{anchor_check}' was not met."
             
             ctx_summary = context_mgr.get_summary_prompt_context()
             ui_tree_snapshot = context_mgr.capture_ui_accessibility_tree()
             
-            notify(f"UI Snapshot captured: {len(ui_tree_snapshot)} chars. Generating recovery plan...")
+            notify(f"[TRACE] UI Snapshot captured: {len(ui_tree_snapshot)} chars. Generating recovery plan...")
             recovery_plan = replan_failed_step(step, error_reason, ctx_summary, ui_tree_snapshot)
             
             if recovery_plan:
-                notify(f"Executing {len(recovery_plan)} recovery step(s)...")
+                notify(f"[TRACE] Executing {len(recovery_plan)} recovery step(s)...")
                 for rec_step in recovery_plan:
                     rec_action = rec_step.get("action", "").lower()
-                    notify(f"Recovery Step: {rec_action}")
+                    notify(f"[TRACE] Recovery Step: {rec_action}")
                     try:
-                        rec_success, rec_msg = exec_mgr.execute_step(rec_step)
+                        rec_success, rec_msg = await exec_mgr.execute_step(rec_step)
                         if not rec_success:
-                            notify(f"Recovery step failed: {rec_msg}")
+                            notify(f"[TRACE] Recovery step failed: {rec_msg}")
                             break # Cascade failure, stop recovery
                     except Exception as e:
-                        notify(f"Recovery step crashed: {e}")
+                        notify(f"[TRACE] Recovery step crashed: {e}")
                         break
-                    time.sleep(1.0)
+                    await asyncio.sleep(1.0)
                 
                 # Final check after recovery
                 try:
                     if verify_anchor(anchor_check):
-                        notify("Recovery successful! Anchor confirmed ✓")
+                        notify("[TRACE] Recovery successful! Anchor confirmed ✓")
                         verified = True
                 except Exception as e:
-                    notify(f"VISTA check crashed during recovery: {e}")
+                    notify(f"[TRACE] VISTA check crashed during recovery: {e}")
             
         if not verified:
-            notify(f"Task stopped: Step {idx+1} could not be verified.")
+            notify(f"[TRACE] Task stopped: Step {idx+1} could not be verified.")
             memory_mgr.complete_task(success=False)
             return False
 
-    notify("Plan execution completed successfully.")
+    notify("[TRACE] Plan execution completed successfully.")
     return True
 
 
-def run_autonomous_agent(instruction: str, update_callback=None) -> bool:
+async def run_autonomous_agent(instruction: str, update_callback=None) -> bool:
     """
     The top-level entry point. Uses MacroOrchestrator to break down massive prompts.
     """
@@ -199,55 +200,55 @@ def run_autonomous_agent(instruction: str, update_callback=None) -> bool:
         if update_callback:
             update_callback(msg)
 
-    notify("Checking if instruction requires Macro Loop Orchestration...")
+    notify("[TRACE] Checking if instruction requires Macro Loop Orchestration...")
     macro_plan = macro_orchestrator.analyze_instruction(instruction)
     
     if macro_plan.get("is_loop"):
         iterations = macro_plan.get("iterations", 1)
-        notify(f"🚀 MASIVE LOOP DETECTED! Iterations: {iterations}")
+        notify(f"[TRACE] 🚀 MASIVE LOOP DETECTED! Iterations: {iterations}")
         
         # 1. Setup Phase
         setup_task = macro_plan.get("setup_instructions")
         if setup_task:
-            notify(f"Phase 1/3: Running Setup -> {setup_task}")
-            setup_plan = plan_task(setup_task, update_callback)
+            notify(f"[TRACE] Phase 1/3: Running Setup -> {setup_task}")
+            setup_plan = await plan_task(setup_task, update_callback)
             if not execute_task_plan(setup_plan, update_callback):
-                notify("Setup failed. Aborting Macro.")
+                notify("[TRACE] Setup failed. Aborting Macro.")
                 return False
                 
         # 2. Loop Phase
         loop_task = macro_plan.get("loop_instructions")
         if loop_task:
-            notify(f"Phase 2/3: Executing Loop {iterations} times...")
+            notify(f"[TRACE] Phase 2/3: Executing Loop {iterations} times...")
             for i in range(iterations):
-                notify(f"--- LOOP ITERATION {i+1} OF {iterations} ---")
-                iter_plan = plan_task(loop_task, update_callback)
-                if not execute_task_plan(iter_plan, update_callback):
-                    notify(f"Loop iteration {i+1} failed! Attempting to continue next iteration...")
+                notify(f"[TRACE] --- LOOP ITERATION {i+1} OF {iterations} ---")
+                iter_plan = await plan_task(loop_task, update_callback)
+                if not await execute_task_plan(iter_plan, update_callback):
+                    notify(f"[TRACE] Loop iteration {i+1} failed! Attempting to continue next iteration...")
                     # In a real system, you might break or retry, but let's continue to be robust
                     
         # 3. Teardown Phase
         teardown_task = macro_plan.get("teardown_instructions")
         if teardown_task:
-            notify(f"Phase 3/3: Running Teardown -> {teardown_task}")
-            teardown_plan = plan_task(teardown_task, update_callback)
+            notify(f"[TRACE] Phase 3/3: Running Teardown -> {teardown_task}")
+            teardown_plan = await plan_task(teardown_task, update_callback)
             execute_task_plan(teardown_plan, update_callback)
             
-        notify("✅ Macro Orchestration Completed Successfully!")
+        notify("[TRACE] ✅ Macro Orchestration Completed Successfully!")
         return True
 
     else:
-        notify("Standard linear task detected. Routing to standard planner.")
-        plan = plan_task(instruction, update_callback)
-        return execute_task_plan(plan, update_callback)
+        notify("[TRACE] Standard linear task detected. Routing to standard planner.")
+        plan = await plan_task(instruction, update_callback)
+        return await execute_task_plan(plan, update_callback)
 
 
 
-def execute_react_loop(instruction: str, update_callback=None):
+async def execute_react_loop(instruction: str, update_callback=None):
     """
     Executes the full ReAct loop for backward compatibility.
     """
-    plan = plan_task(instruction, update_callback)
+    plan = await plan_task(instruction, update_callback)
     if not plan:
         return
     execute_task_plan(plan, update_callback)

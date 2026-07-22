@@ -25,13 +25,18 @@ from src.memory_manager import MemoryManager
 from src.execution_manager import ExecutionManager
 from src.security import SecurityManager
 from src.logger import logger
+from src.event_bus import event_bus
+from src.utils.migrate_memory import migrate_skills
+from src.config import WAKE_WORDS, NOISE_GATE_THRESHOLD
+from src.tts_module import tts_manager
 
 class AIF_Server:
     def __init__(self):
         print("Initializing AIF Headless Server...")
+        migrate_skills()
         self.fsm = AIF_StateMachine()
         self.tracker = HandTracker()
-        self.stt = SpeechRecognizer()
+        self.stt = SpeechRecognizer(noise_threshold=NOISE_GATE_THRESHOLD)
         self.fusion = FusionEngine()
         
         # Core Architectural Managers
@@ -53,6 +58,12 @@ class AIF_Server:
         self.smoothing = 3  # Reduced smoothing for much faster, snappier cursor response
         self.is_pinching = False
         
+        # Dwell-Clicking state
+        self.dwell_start_time = None
+        self.dwell_threshold = 0.6  # 600ms default
+        self.last_dwell_x = 0
+        self.last_dwell_y = 0
+        
         self.connected_clients = set()
         self.hand_data_for_ui = []
         
@@ -71,6 +82,12 @@ class AIF_Server:
         
         self.chat_history_file = os.path.join(os.path.dirname(__file__), "chat_history.json")
         self.chat_history = self._load_history()
+
+        event_bus.subscribe("update_noise_gate", self.on_noise_gate_update)
+        
+    def on_noise_gate_update(self, threshold: float):
+        self.stt.noise_threshold = threshold
+        logger.info(f"Noise gate updated to {threshold}")
 
     def _load_history(self):
         if os.path.exists(self.chat_history_file):
@@ -99,21 +116,54 @@ class AIF_Server:
         if self.fsm.state == SystemState.AWAITING_CONFIRMATION:
             self.fsm.transition(SystemState.EXECUTING)
             
-            def _exec_worker():
+            async def _exec_worker():
                 pending_plan = self.fsm.current_context.get("pending_plan", [])
                 
                 def update_ui(msg):
-                    self.fsm.current_context["reply_text"] = msg
+                    if msg.startswith("__INJECT__:"):
+                        self.fsm.current_context["inject_html"] = msg.replace("__INJECT__:", "")
+                    else:
+                        self.fsm.current_context["reply_text"] = msg
                     
                 try:
-                    execute_task_plan(pending_plan, update_callback=update_ui)
+                    await execute_task_plan(pending_plan, update_callback=update_ui)
                 except Exception as e:
                     update_ui(f"Error during execution: {e}")
                     
-                time.sleep(1)
+                import asyncio
+                await asyncio.sleep(1)
                 self.fsm.transition(SystemState.IDLE)
                 
-            threading.Thread(target=_exec_worker, daemon=True).start()
+            import asyncio
+            asyncio.create_task(_exec_worker())
+
+    def _toggle_site_blocking(self, block: bool):
+        hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
+        blocked_sites = ["www.youtube.com", "youtube.com", "www.twitter.com", "twitter.com", "www.reddit.com", "reddit.com", "www.facebook.com", "facebook.com"]
+        redirect_ip = "127.0.0.1"
+        
+        try:
+            with open(hosts_path, 'r') as f:
+                lines = f.readlines()
+                
+            if block:
+                # Add blocks if not present
+                with open(hosts_path, 'a') as f:
+                    for site in blocked_sites:
+                        if not any(site in line for line in lines):
+                            f.write(f"{redirect_ip} {site}\n")
+                print("Focus Mode: Distracting sites blocked in hosts file.")
+            else:
+                # Remove blocks
+                with open(hosts_path, 'w') as f:
+                    for line in lines:
+                        if not any(site in line for site in blocked_sites) or line.strip() == "":
+                            f.write(line)
+                print("Focus Mode: Distracting sites unblocked.")
+        except PermissionError:
+            print("[Warning] Could not modify hosts file. Please run the server as Administrator for OS-level distraction blocking.")
+        except Exception as e:
+            print(f"Error toggling site blocking: {e}")
 
     def reject_plan(self):
         """Rejects the planned steps and goes back to IDLE."""
@@ -139,7 +189,7 @@ class AIF_Server:
                             key_action('enter')
                         else:
                             self.fsm.current_context["voice_text"] = text
-                            if "servent" in text.lower() or "servant" in text.lower():
+                            if any(ww.lower() in text.lower() for ww in WAKE_WORDS):
                                 print(f"Wake word detected! Intent: {text}")
                                 self.fsm.transition(SystemState.PROCESSING_INTENT)
                 elif self.fsm.state == SystemState.AWAITING_CONFIRMATION:
@@ -164,6 +214,7 @@ class AIF_Server:
         while True:
             success, img = cap.read()
             if not success:
+                time.sleep(1) # Prevent CPU spinning if camera is unavailable
                 continue
                 
             img = cv2.flip(img, 1)
@@ -173,10 +224,57 @@ class AIF_Server:
             self.tracker.process_frame(img)
             
             # Extract coordinates for UI and Mouse Control
-            lm_list = self.tracker.get_position(w, h, hand_no=0)
+            lm_list, is_pinching, is_fist, is_peace_sign = self.tracker.get_position(w, h, hand_no=0)
+            
+            if is_peace_sign:
+                if not getattr(self, 'peace_triggered', False):
+                    self.peace_triggered = True
+                    print("Peace sign detected! Triggering Vision capture...")
+                    
+                    # Capture the current frame and save to a temporary file in the ui folder
+                    cv2.imwrite(r"ui\vision_capture.jpg", img)
+                    
+                    # Queue a task to process the vision capture
+                    self.fsm.current_context["pending_plan"] = [
+                        {
+                            "action": "background_vision_capture",
+                            "target": "vision_capture.jpg"
+                        }
+                    ]
+                    
+                    import asyncio
+                    def _start_vision_worker():
+                        self.fsm.transition(SystemState.EXECUTING)
+                        asyncio.run(self.exec_mgr.execute_step(self.fsm.current_context["pending_plan"][0]))
+                        self.fsm.transition(SystemState.IDLE)
+                        
+                    threading.Thread(target=_start_vision_worker, daemon=True).start()
+                    time.sleep(2) # Cooldown
+            else:
+                self.peace_triggered = False
+            
+            # --- CLUTCH MECHANISM ---
+            if is_fist:
+                if not hasattr(self, 'fist_start_time') or self.fist_start_time is None:
+                    self.fist_start_time = time.time()
+                elif (time.time() - self.fist_start_time) > 0.8: # 800ms threshold
+                    self.clutch_engaged = not getattr(self, 'clutch_engaged', False)
+                    self.fist_start_time = None
+                    event_bus.publish("clutch_status", self.clutch_engaged)
+                    time.sleep(1.0) # Cooldown
+            else:
+                self.fist_start_time = None
+                
+            if getattr(self, 'clutch_engaged', False):
+                self.hand_data_for_ui = lm_list
+                time.sleep(1/30)
+                continue
+            # ------------------------
+            
             self.hand_data_for_ui = lm_list
             
             if len(lm_list) != 0:
+                event_bus.publish("vision_telemetry", True)
                 # Extract palm center for stable movement
                 px, py = lm_list[9][1], lm_list[9][2]
                 self.latest_gesture_coords = (px, py)
@@ -213,6 +311,24 @@ class AIF_Server:
                 is_scrolling = is_thumb_curled
                 if not is_scrolling:
                     pyautogui.moveTo(curr_x, curr_y)
+                    
+                    # Dwell-Click Logic (Bypass Pinch requirement)
+                    dist = math.hypot(curr_x - self.last_dwell_x, curr_y - self.last_dwell_y)
+                    if dist < 15: # Cursor is hovering still
+                        if self.dwell_start_time is None:
+                            self.dwell_start_time = time.time()
+                        elif (time.time() - self.dwell_start_time) >= self.dwell_threshold:
+                            if not getattr(self, 'is_dwell_clicked', False):
+                                pyautogui.click()
+                                self.is_dwell_clicked = True
+                                # Reset dwell after click to prevent spamming
+                                self.dwell_start_time = None 
+                    else:
+                        self.dwell_start_time = None
+                        self.is_dwell_clicked = False
+                        self.last_dwell_x = curr_x
+                        self.last_dwell_y = curr_y
+                        
                 else:
                     # If thumb is tucked, move hand up/down to scroll the page
                     dy = curr_y - self.prev_y
@@ -239,6 +355,7 @@ class AIF_Server:
                 else:
                     self.is_right_clicked = False
             else:
+                event_bus.publish("vision_telemetry", False)
                 self.latest_gesture_coords = None
 
             # Frame rate limit to prevent CPU hogging
@@ -278,8 +395,8 @@ class AIF_Server:
             pass # Listening state is now handled continuously by _stt_worker
 
         elif self.fsm.state == SystemState.PROCESSING_INTENT:
-            if getattr(self, 'intent_thread', None) is None or not self.intent_thread.is_alive():
-                def _react_worker():
+            if getattr(self, 'intent_task', None) is None or self.intent_task.done():
+                async def _react_worker():
                     context = self.fsm.get_context()
                     instruction = context.get("voice_text", "")
                     
@@ -293,10 +410,7 @@ class AIF_Server:
                     if clean_text in conversational_phrases:
                         update_ui(f"Hello! I am your AI assistant. How can I help you today?")
                         try:
-                            import pyttsx3
-                            engine = pyttsx3.init()
-                            engine.say("Hello! I am your AI assistant.")
-                            engine.runAndWait()
+                            tts_manager.speak_async("Hello! I am your AI assistant.")
                         except Exception:
                             pass
                         self.fsm.transition(SystemState.IDLE)
@@ -306,19 +420,35 @@ class AIF_Server:
                     try:
                         # --- Smart Intent Router ---
                         settings = self.fsm.current_context.get("settings", {})
-                        is_headless = settings.get("headlessMode", True) # Default to true for safety
                         
-                        if is_headless and ("youtube" in instruction.lower() or "youtu.be" in instruction.lower()):
-                            import re
-                            url_match = re.search(r'(https?://[^\s]+)', instruction)
-                            extracted_url = url_match.group(0) if url_match else ""
-                            
+                        if clean_text in ["generate-flashcard", "generate-snippet", "generate-handwritten", "generate-mindmap"]:
+                            # Fetch recent context for the LLM
+                            recent_context = self.fsm.current_context.get("reply_text", "")
                             plan = [
-                                {"action": "background_api_call", "target": "YouTube Transcript API", "url": extracted_url},
-                                {"action": "background_llm_summarize", "target": "Hermes 8B Local"}
+                                {
+                                    "action": "generate_ui_component", 
+                                    "target": clean_text,
+                                    "context": recent_context
+                                }
+                            ]
+                        elif clean_text in ["format-project", "run-tests", "build-prod", "start-server", "review-code"]:
+                            # Map developer macros to terminal commands
+                            cmd_map = {
+                                "format-project": "npx prettier --write .",
+                                "run-tests": "npm run test",
+                                "build-prod": "npm run build",
+                                "start-server": "npm run dev",
+                                "review-code": "git diff"
+                            }
+                            plan = [
+                                {
+                                    "action": "run_terminal",
+                                    "command": cmd_map.get(clean_text, "echo 'Unknown command'"),
+                                    "cwd": self.fsm.current_context.get("settings", {}).get("devFolder", "E:\\AIF_Project\\ui")
+                                }
                             ]
                         else:
-                            plan = plan_task(instruction, update_callback=update_ui)
+                            plan = await plan_task(instruction, update_callback=update_ui)
                         # ---------------------------
                         if plan:
                             self.fsm.current_context["pending_plan"] = plan
@@ -327,10 +457,7 @@ class AIF_Server:
                             
                             # Announce confirmation via TTS
                             try:
-                                import pyttsx3
-                                engine = pyttsx3.init()
-                                engine.say("I have generated a plan. Please check the dashboard and confirm to proceed.")
-                                engine.runAndWait()
+                                tts_manager.speak_async("I have generated a plan. Please check the dashboard and confirm to proceed.")
                             except Exception:
                                 pass
                                 
@@ -342,8 +469,8 @@ class AIF_Server:
                         update_ui(f"Error: {e}")
                         self.fsm.transition(SystemState.IDLE)
                     
-                self.intent_thread = threading.Thread(target=_react_worker, daemon=True)
-                self.intent_thread.start()
+                import asyncio
+                self.intent_task = asyncio.create_task(_react_worker())
             
         elif self.fsm.state == SystemState.EXECUTING:
             # ReAct loop is running in thread, updates are sent via callback
@@ -384,10 +511,16 @@ class AIF_Server:
                 }
                 await websocket.send(json.dumps(data))
                 
+                inject_html = context.get("inject_html", "")
+                if inject_html:
+                    await websocket.send(json.dumps({"type": "INJECT_UI", "html": inject_html}))
+                    self.fsm.current_context["inject_html"] = ""
+                
                 # Clear reply text after sending to prevent loops
                 if reply_text:
                     self.append_to_history("SYSTEM", reply_text)
                     self.fsm.current_context["reply_text"] = ""
+                    await websocket.send(json.dumps({"type": "CHAT_HISTORY", "history": self.chat_history}))
                     
                 # Check for commands from UI
                 try:
@@ -420,6 +553,10 @@ class AIF_Server:
                         elif mode == "STANDBY":
                             self.is_listening_mode = False
                             self.is_tracking_mode = False
+                        
+                        if hasattr(self, 'exec_mgr') and hasattr(self.exec_mgr, 'headless_executor'):
+                            self.exec_mgr.headless_executor.llm_core.swap_model(mode)
+                            
                         print(f"Ecosystem mode changed to: {mode}")
                     elif cmd == "CONFIRM_PLAN":
                         print("UI confirmation received!")
@@ -427,6 +564,30 @@ class AIF_Server:
                     elif cmd == "REJECT_PLAN":
                         print("UI rejection received!")
                         self.reject_plan()
+                    elif cmd == "BLOCK_SITES":
+                        self._toggle_site_blocking(True)
+                    elif cmd == "UNBLOCK_SITES":
+                        self._toggle_site_blocking(False)
+                    elif cmd == "CLEAR_HISTORY":
+                        self.fsm.current_context["history"] = []
+                        self.fsm.current_context["voice_text"] = ""
+                        self.fsm.current_context["reply_text"] = ""
+                        self.fsm.current_context["pending_plan"] = []
+                        self.fsm.state = SystemState.IDLE
+                        self.chat_history = []
+                        try:
+                            with open(self.chat_history_file, 'w', encoding='utf-8') as f:
+                                json.dump([], f)
+                        except Exception as e:
+                            print(f"Failed to clear history file: {e}")
+                        await websocket.send(json.dumps({"type": "CHAT_HISTORY", "history": self.chat_history}))
+                        print("Chat history cleared by UI.")
+                    elif cmd == "ABORT_EXECUTION":
+                        print("KILL-SWITCH ACTIVATED via UI!")
+                        self.memory_mgr.abort_flag = True
+                        self.fsm.current_context["reply_text"] = "🛑 TASK ABORTED BY KILL-SWITCH!"
+                        if self.fsm.state == SystemState.EXECUTING:
+                            self.fsm.transition(SystemState.IDLE)
                     elif cmd == "SELECT_FOLDER":
                         import tkinter as tk
                         from tkinter import filedialog
@@ -454,23 +615,25 @@ class AIF_Server:
                             except Exception as e:
                                 print(f"Failed to process image: {e}")
                     elif cmd == "TEXT_INPUT":
-                        if self.fsm.state != SystemState.IDLE:
-                            print('Ignoring TEXT_INPUT: system is busy')
-                        else:
-                            text_cmd = payload.get("text")
-                            if text_cmd:
-                                img_path = self.fsm.current_context.get("uploaded_image")
-                                if img_path:
-                                    text_cmd = f"[IMAGE_ATTACHED: {img_path}] " + text_cmd
+                        text_cmd = payload.get("text")
+                        if text_cmd:
+                            # Reset system state if stuck
+                            if self.fsm.state != SystemState.IDLE:
+                                self.fsm.transition(SystemState.IDLE)
                                 
-                                # Log user input to history
-                                display_text = payload.get("text") # Log clean text
-                                self.append_to_history("USER", display_text)
+                            img_path = self.fsm.current_context.get("uploaded_image")
+                            if img_path:
+                                text_cmd = f"[IMAGE_ATTACHED: {img_path}] " + text_cmd
+                            
+                            # Log user input to history
+                            display_text = payload.get("text")
+                            self.append_to_history("USER", display_text)
+                            await websocket.send(json.dumps({"type": "CHAT_HISTORY", "history": self.chat_history}))
 
-                                self.fsm.current_context["voice_text"] = text_cmd
-                                self.fsm.current_context["reply_text"] = ""
-                                self.fsm.transition(SystemState.PROCESSING_INTENT)
-                                self.process_state()
+                            self.fsm.current_context["voice_text"] = text_cmd
+                            self.fsm.current_context["reply_text"] = ""
+                            self.fsm.transition(SystemState.PROCESSING_INTENT)
+                            self.process_state()
                                 
                     elif cmd == "GET_HISTORY":
                         await websocket.send(json.dumps({
@@ -499,7 +662,32 @@ class AIF_Server:
             await asyncio.Future()
 
     def start_server(self):
-        asyncio.run(self.main_server())
+        # Run WebSocket server in a background thread
+        ws_thread = threading.Thread(target=lambda: asyncio.run(self.main_server()), daemon=True)
+        ws_thread.start()
+        
+        # Launch HUD in the main thread if available
+        try:
+            from src.hud import launch_hud
+            from src.fsm_module import SystemState
+            
+            def kill_callback():
+                self.memory_mgr.abort_flag = True
+                self.fsm.current_context["reply_text"] = "🛑 TASK ABORTED BY KILL-SWITCH!"
+                if self.fsm.state == SystemState.EXECUTING:
+                    self.fsm.transition(SystemState.IDLE)
+                    
+            launch_hud(killswitch_cb=kill_callback)
+        except Exception as e:
+            print(f"[HUD] HUD GUI closed or not supported ({e}). Running in background mode.")
+
+        # CRITICAL: Keep main thread alive so closing HUD window NEVER terminates the backend!
+        print("[AIF Server] Backend active & listening on ws://0.0.0.0:8765. Press Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("[AIF Server] Shutting down.")
 
 if __name__ == '__main__':
     server = AIF_Server()

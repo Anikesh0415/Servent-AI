@@ -32,6 +32,57 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
+// Pomodoro Logic
+let pomodoroInterval;
+let pomodoroTime = 25 * 60;
+let isPomodoroActive = false;
+const pomodoroWidget = document.getElementById('pomodoro-widget');
+const pomodoroText = document.getElementById('pomodoro-text');
+
+if (pomodoroWidget) {
+    pomodoroWidget.addEventListener('click', () => {
+        if (isPomodoroActive) {
+            // Stop Pomodoro
+            clearInterval(pomodoroInterval);
+            isPomodoroActive = false;
+            pomodoroTime = 25 * 60;
+            pomodoroText.textContent = "25:00";
+            pomodoroWidget.style.background = "";
+            appendMessage('SYSTEM', 'Focus Mode Disabled. Distractions unblocked.');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: "UNBLOCK_SITES" }));
+            }
+        } else {
+            // Start Pomodoro
+            isPomodoroActive = true;
+            pomodoroWidget.style.background = "rgba(231, 76, 60, 0.4)";
+            appendMessage('SYSTEM', 'Focus Mode Enabled for 25 minutes. Distractions blocked.');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: "BLOCK_SITES" }));
+            }
+            
+            pomodoroInterval = setInterval(() => {
+                pomodoroTime--;
+                let m = Math.floor(pomodoroTime / 60).toString().padStart(2, '0');
+                let s = (pomodoroTime % 60).toString().padStart(2, '0');
+                pomodoroText.textContent = `${m}:${s}`;
+                
+                if (pomodoroTime <= 0) {
+                    clearInterval(pomodoroInterval);
+                    isPomodoroActive = false;
+                    pomodoroTime = 25 * 60;
+                    pomodoroText.textContent = "25:00";
+                    pomodoroWidget.style.background = "";
+                    appendMessage('SYSTEM', 'Focus Mode Complete! Take a 5 minute break.');
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ command: "UNBLOCK_SITES" }));
+                    }
+                }
+            }, 1000);
+        }
+    });
+}
+
 // TTS Toggle Logic
 ttsToggle.addEventListener('click', () => {
     ttsEnabled = !ttsEnabled;
@@ -39,6 +90,7 @@ ttsToggle.addEventListener('click', () => {
         ttsToggle.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
     } else {
         ttsToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
     }
 });
 
@@ -83,36 +135,130 @@ function speakText(text) {
     if (!ttsEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel(); 
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US'; // Force English language
     
-    // Set selected voice
+    // Set selected voice or fallback to English
     const voiceSelectedText = document.getElementById('voice-selected-text');
     const selectedVoiceName = voiceSelectedText ? (voiceSelectedText.dataset.value || voiceSelectedText.textContent) : null;
-    if (selectedVoiceName) {
-        const voice = voices.find(v => v.name === selectedVoiceName);
-        if (voice) utterance.voice = voice;
+    let chosenVoice = null;
+    if (selectedVoiceName && voices.length > 0) {
+        chosenVoice = voices.find(v => v.name === selectedVoiceName);
+    }
+    if (!chosenVoice && voices.length > 0) {
+        chosenVoice = voices.find(v => v.lang && v.lang.startsWith('en'));
+    }
+    if (chosenVoice) {
+        utterance.voice = chosenVoice;
     }
     
-    utterance.pitch = 1.0; // Normal human pitch
+    utterance.pitch = 1.0;
     utterance.rate = 1.0;
     window.speechSynthesis.speak(utterance);
 }
 
+let currentTraceContainer = null;
+
 function appendMessage(sender, text) {
+    if (!text || typeof text !== 'string' || text.trim() === '') return;
+    text = text.trim();
+
+    // Prevent duplicate user messages from rendering back-to-back
+    if (sender === 'USER') {
+        const lastMsg = chatLog.lastElementChild;
+        if (lastMsg && lastMsg.classList.contains('user-msg')) {
+            if (lastMsg.textContent.trim() === text) {
+                return; // Skip duplicate message!
+            }
+        }
+    } else if (sender === 'SYSTEM' && !text.startsWith('[TRACE]')) {
+        const lastMsg = chatLog.lastElementChild;
+        if (lastMsg && lastMsg.classList.contains('system-msg')) {
+            if (lastMsg.textContent.trim() === text) {
+                return; // Skip duplicate system message!
+            }
+        }
+    }
+
     const msgDiv = document.createElement('div');
     msgDiv.classList.add('message');
     
     if (sender === 'USER') {
         msgDiv.classList.add('user-msg');
+        // Reset trace container when user speaks
+        if (currentTraceContainer) {
+            currentTraceContainer.removeAttribute('open');
+            currentTraceContainer = null;
+        }
     } else {
         msgDiv.classList.add('system-msg');
+        
+        if (text.startsWith("[TRACE]")) {
+            text = text.replace("[TRACE]", "").trim();
+            
+            if (!currentTraceContainer) {
+                currentTraceContainer = document.createElement('details');
+                currentTraceContainer.classList.add('trace-container');
+                currentTraceContainer.setAttribute('open', '');
+                
+                const summary = document.createElement('summary');
+                summary.textContent = "Task Execution Trace";
+                currentTraceContainer.appendChild(summary);
+                
+                msgDiv.appendChild(currentTraceContainer);
+                chatLog.appendChild(msgDiv);
+            }
+            
+            // Deduplicate trace lines inside currentTraceContainer
+            const existingLines = Array.from(currentTraceContainer.querySelectorAll('.trace-line'));
+            if (existingLines.some(l => l.textContent.trim() === text)) {
+                return; // Skip duplicate trace line!
+            }
+
+            const traceLine = document.createElement('div');
+            traceLine.classList.add('trace-line');
+            traceLine.textContent = text;
+            currentTraceContainer.appendChild(traceLine);
+            chatLog.scrollTop = chatLog.scrollHeight; 
+            
+            // Auto close if it's the final trace
+            if (text === "Plan execution completed successfully." || text.includes("Macro Orchestration Completed")) {
+                currentTraceContainer.removeAttribute('open');
+                currentTraceContainer = null;
+            }
+            return; // We appended into the trace container, so skip standard bubble creation
+        } else if (text.startsWith("[ANSWER]")) {
+            if (currentTraceContainer) {
+                currentTraceContainer.removeAttribute('open');
+                currentTraceContainer = null;
+            }
+            text = text.replace("[ANSWER]", "").trim();
+            const bubble = document.createElement('div');
+            bubble.classList.add('msg-bubble', 'answer-bubble');
+            bubble.textContent = text;
+            msgDiv.appendChild(bubble);
+        } else {
+            // Standard system message (no tags)
+            if (currentTraceContainer) {
+                currentTraceContainer.removeAttribute('open');
+                currentTraceContainer = null;
+            }
+            const bubble = document.createElement('div');
+            bubble.classList.add('msg-bubble');
+            bubble.textContent = text;
+            msgDiv.appendChild(bubble);
+        }
     }
     
-    const bubble = document.createElement('div');
-    bubble.classList.add('msg-bubble');
-    bubble.textContent = text;
-    msgDiv.appendChild(bubble);
+    if (sender === 'USER') {
+        const bubble = document.createElement('div');
+        bubble.classList.add('msg-bubble');
+        bubble.textContent = text;
+        msgDiv.appendChild(bubble);
+    }
     
-    chatLog.appendChild(msgDiv);
+    if (msgDiv.children.length > 0) {
+        chatLog.appendChild(msgDiv);
+    }
     chatLog.scrollTop = chatLog.scrollHeight; 
 }
 
@@ -123,6 +269,7 @@ function connectWebSocket() {
         wsStatus.textContent = 'CONNECTED';
         wsStatus.style.color = '#34c759';
         statusDot.classList.add('active');
+        updateState('ONLINE');
         
         // Request history on connect
         ws.send(JSON.stringify({ command: "GET_HISTORY" }));
@@ -138,10 +285,25 @@ function connectWebSocket() {
             return;
         }
         
+        if (data.type === "INJECT_UI") {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message system-msg`;
+            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${data.html}</div>`;
+            document.getElementById('chat-log').appendChild(msgDiv);
+            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
+            
+            // Re-initialize mermaid in case the injected HTML contains a mindmap
+            if (window.mermaid) {
+                setTimeout(() => { mermaid.init(undefined, document.querySelectorAll('.mermaid')); }, 100);
+            }
+            return;
+        }
+
         if (data.type === "CHAT_HISTORY") {
             chatLog.innerHTML = ""; // Clear existing log
+            updateHistoryDrawer(data.history);
             
-            if (data.history.length === 0) {
+            if (!data.history || data.history.length === 0) {
                 const hour = new Date().getHours();
                 let greeting = "Good evening";
                 if (hour < 12) greeting = "Good morning";
@@ -149,9 +311,16 @@ function connectWebSocket() {
                 
                 appendMessage('SYSTEM', `${greeting}, Developer! System is online and ready.`);
             } else {
+                let lastUserMsg = "";
                 data.history.forEach(msg => {
                     appendMessage(msg.sender, msg.text);
+                    if (msg.sender === "USER") {
+                        lastUserMsg = msg.text;
+                    }
                 });
+                if (lastUserMsg) {
+                    lastVoiceText = lastUserMsg;
+                }
             }
             return;
         }
@@ -174,18 +343,11 @@ function connectWebSocket() {
             appendMessage('USER', data.voice_text);
             lastVoiceText = data.voice_text;
         }
-        // If server clears the text, we can reset our local tracking
-        if (!data.voice_text) {
-            lastVoiceText = "";
-        }
         
         if (data.reply_text && data.reply_text !== lastReplyText) {
             lastReplyText = data.reply_text;
             appendMessage('SYSTEM', data.reply_text);
             speakText(data.reply_text);
-        }
-        if (!data.reply_text) {
-            lastReplyText = '';
         }
         
         if (data.action_text) {
@@ -198,16 +360,86 @@ function connectWebSocket() {
         wsStatus.style.color = '#ff3b30';
         statusDot.classList.remove('active');
         sysState.textContent = 'OFFLINE';
+        const stateWrapper = sysState ? sysState.closest('.sys-state-wrapper') : null;
+        if (stateWrapper) {
+            stateWrapper.classList.remove('online');
+            stateWrapper.classList.add('offline');
+        }
         setTimeout(connectWebSocket, reconnectInterval);
     };
 }
 
 function updateState(stateName) {
     sysState.textContent = stateName;
+    const stateWrapper = sysState ? sysState.closest('.sys-state-wrapper') : null;
+    if (stateWrapper) {
+        if (stateName === 'OFFLINE' || stateName === 'DISCONNECTED') {
+            stateWrapper.classList.remove('online');
+            stateWrapper.classList.add('offline');
+        } else {
+            stateWrapper.classList.remove('offline');
+            stateWrapper.classList.add('online');
+        }
+    }
     const confirmWrapper = document.getElementById('confirmation-wrapper');
     const inputWrapper = document.getElementById('input-wrapper');
+    
+    // Train Animation Logic
+    const progressContainer = document.getElementById('macro-progress');
+    const progressTrain = document.getElementById('progress-train');
+    const progressText = document.getElementById('macro-progress-text');
+    
+    if (progressContainer && progressTrain && progressText) {
+        // Reset stations
+        for(let i=1; i<=4; i++) {
+            const st = document.getElementById(`station-${i}`);
+            if(st) { st.classList.remove('active', 'passed'); }
+        }
+
+        if (stateName === 'ONLINE' || stateName === 'STANDBY') {
+            progressText.textContent = "Engine Standby - Ready for Task";
+            progressTrain.style.left = "12%";
+            if (document.getElementById('station-1')) {
+                document.getElementById('station-1').classList.add('active');
+            }
+        } else {
+            if (stateName.includes('PLAN')) {
+                progressText.textContent = "Analyzing requirements & planning...";
+                progressTrain.style.left = "12%";
+                if (document.getElementById('station-1')) document.getElementById('station-1').classList.add('active');
+            } else if (stateName === 'EXECUTING' || stateName.includes('RUN')) {
+                progressText.textContent = "Executing automation steps...";
+                progressTrain.style.left = "38%";
+                if (document.getElementById('station-1')) document.getElementById('station-1').classList.add('passed');
+                if (document.getElementById('station-2')) document.getElementById('station-2').classList.add('active');
+            } else if (stateName === 'AWAITING_CONFIRMATION' || stateName.includes('VERIFY')) {
+                progressText.textContent = "Waiting for verification/approval...";
+                progressTrain.style.left = "63%";
+                if (document.getElementById('station-1')) document.getElementById('station-1').classList.add('passed');
+                if (document.getElementById('station-2')) document.getElementById('station-2').classList.add('passed');
+                if (document.getElementById('station-3')) document.getElementById('station-3').classList.add('active');
+            } else if (stateName === 'COMPLETE' || stateName === 'FINISHED') {
+                progressText.textContent = "Task Complete!";
+                progressTrain.style.left = "88%";
+                if (document.getElementById('station-1')) document.getElementById('station-1').classList.add('passed');
+                if (document.getElementById('station-2')) document.getElementById('station-2').classList.add('passed');
+                if (document.getElementById('station-3')) document.getElementById('station-3').classList.add('passed');
+                if (document.getElementById('station-4')) document.getElementById('station-4').classList.add('active');
+            } else {
+                progressText.textContent = `System state: ${stateName}...`;
+            }
+        }
+    }
+
     if (confirmWrapper && inputWrapper) {
         if (stateName === 'AWAITING_CONFIRMATION') {
+            const autoConfirm = document.getElementById('auto-confirm-toggle');
+            if (autoConfirm && autoConfirm.checked) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ command: "CONFIRM_PLAN" }));
+                }
+                return;
+            }
             confirmWrapper.style.display = 'flex';
             inputWrapper.style.display = 'none';
         } else {
@@ -301,9 +533,24 @@ if (removeImageBtn) {
 function sendTextCommand() {
     let text = textInput.value.trim();
     if (text && ws && ws.readyState === WebSocket.OPEN) {
+        // Intercept macro commands typed manually
+        if (text === "generate-snippet" || text === "generate-flashcard" || text === "generate-handwritten") {
+            const tempBtn = document.createElement('button');
+            tempBtn.className = 'macro-btn';
+            tempBtn.setAttribute('data-cmd', text);
+            // Simulate click to trigger existing macro logic
+            macroBtns.forEach(btn => {
+                if (btn.getAttribute('data-cmd') === text) {
+                    btn.click();
+                }
+            });
+            textInput.value = '';
+            return;
+        }
+
         // Dev Mode / Student Mode Injection
-        const devToggle = document.getElementById('dev-mode-toggle');
-        const studentToggle = document.getElementById('student-mode-toggle');
+        const devToggle = document.getElementById('dev-mode-btn');
+        const studentToggle = document.getElementById('student-mode-btn');
         
         if (devToggle && devToggle.classList.contains('active')) {
             const devFolder = document.getElementById('dev-folder-input').value.trim() || "C:\\";
@@ -317,6 +564,7 @@ function sendTextCommand() {
         // Temporarily set lastVoiceText to avoid duping it when the server echoes it back
         lastVoiceText = textInput.value.trim();
         
+        updateState('PLANNING');
         ws.send(JSON.stringify({
             command: "TEXT_INPUT",
             text: text
@@ -355,7 +603,10 @@ textInput.addEventListener('keypress', (e) => {
 const modeBtns = document.querySelectorAll('.mode-btn');
 modeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            appendMessage('SYSTEM', '⚠️ Backend is Offline! Please start server.py to enable Camera & Voice modes.');
+            return;
+        }
         
         const mode = btn.dataset.mode;
         ws.send(JSON.stringify({
@@ -434,6 +685,7 @@ if (meetingToggle) {
 const actionBtns = document.querySelectorAll('.action-btn');
 actionBtns.forEach(btn => {
     btn.addEventListener('click', () => {
+        if (btn.classList.contains('macro-btn')) return; // Prevent double-firing
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         const cmd = btn.dataset.cmd;
         appendMessage('USER', cmd);
@@ -457,13 +709,20 @@ if (bgDropdown && bgImage && bgVideo) {
         opt.addEventListener('click', () => {
             bgSelectedText.textContent = opt.textContent;
             const value = opt.dataset.value;
-            const [type, url] = value.split('|');
+            const pipeIdx = value.indexOf('|');
+            const type = value.substring(0, pipeIdx);
+            const url = value.substring(pipeIdx + 1);
             
             if (type === 'image') {
                 bgVideo.style.display = 'none';
                 bgImage.style.display = 'block';
-                bgImage.style.backgroundImage = `url('${url}')`;
-                bgVideo.pause();
+                bgImage.style.background = `url('${url}') center/cover no-repeat`;
+                if (bgVideo.pause) bgVideo.pause();
+            } else if (type === 'gradient') {
+                bgVideo.style.display = 'none';
+                bgImage.style.display = 'block';
+                bgImage.style.background = url;
+                if (bgVideo.pause) bgVideo.pause();
             } else if (type === 'video') {
                 bgImage.style.display = 'none';
                 bgVideo.style.display = 'block';
@@ -508,6 +767,15 @@ if (sidebarToggle) {
         }
     });
 }
+const qaToggleBtn = document.getElementById('qa-toggle-btn');
+const quickActions = document.getElementById('quick-actions-panel');
+if (qaToggleBtn && quickActions) {
+    qaToggleBtn.addEventListener('click', () => {
+        quickActions.classList.toggle('collapsed');
+        qaToggleBtn.innerHTML = quickActions.classList.contains('collapsed') ? '<i class="fa-solid fa-chevron-right"></i>' : '<i class="fa-solid fa-chevron-left"></i>';
+    });
+}
+
 const historyCloseBtn = document.getElementById('history-close-btn');
 if (historyCloseBtn) {
     const historyDrawer = document.getElementById('chat-history-drawer');
@@ -553,23 +821,42 @@ groupHeaders.forEach(header => {
 
 // Settings Modal Logic
 const settingsToggle = document.getElementById('settings-toggle');
+const topSettingsBtn = document.getElementById('top-settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 
-if (settingsToggle && settingsModal) {
-    settingsToggle.addEventListener('click', () => {
-        settingsModal.classList.add('active');
-    });
+if (settingsModal) {
+    if (settingsToggle) {
+        settingsToggle.addEventListener('click', () => {
+            settingsModal.classList.add('active');
+        });
+    }
+    if (topSettingsBtn) {
+        topSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('active');
+        });
+    }
     
-    closeSettingsBtn.addEventListener('click', () => {
-        settingsModal.classList.remove('active');
-    });
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+    }
     
     // Close on click outside
     settingsModal.addEventListener('click', (e) => {
         if (e.target === settingsModal) {
             settingsModal.classList.remove('active');
         }
+    });
+}
+
+// Right Context Sidebar Toggle Logic
+const contextToggleBtn = document.getElementById('context-toggle-btn');
+const contextSidebar = document.getElementById('context-sidebar');
+if (contextToggleBtn && contextSidebar) {
+    contextToggleBtn.addEventListener('click', () => {
+        contextSidebar.classList.toggle('collapsed');
     });
 }
 
@@ -672,93 +959,18 @@ const macroProgressText = document.getElementById('macro-progress-text');
 macroBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
-        
-        if (cmd === "generate-snippet") {
-            const snippetHtml = `
-            <div class="code-snippet">
-                <div class="code-header">
-                    <span>utils.js</span>
-                    <button class="copy-btn"><i class="fa-regular fa-copy"></i> Copy</button>
-                </div>
-                <pre class="code-body"><span class="token-keyword">export function</span> <span class="token-function">calculateEntropy</span>(data) {
-    <span class="token-keyword">let</span> entropy = 0;
-    <span class="token-keyword">for</span> (<span class="token-keyword">const</span> key <span class="token-keyword">in</span> data) {
-        <span class="token-keyword">const</span> p = data[key];
-        entropy -= p * Math.<span class="token-function">log2</span>(p);
-    }
-    <span class="token-keyword">return</span> entropy;
-}</pre>
-            </div>`;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            appendMessage('USER', cmd);
+            lastVoiceText = cmd;
             
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message system-msg`;
-            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${snippetHtml}</div>`;
-            document.getElementById('chat-log').appendChild(msgDiv);
-            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
-            return;
+            ws.send(JSON.stringify({
+                command: "TEXT_INPUT",
+                text: cmd
+            }));
+        } else {
+            appendMessage('SYSTEM', 'Cannot execute macro: Disconnected from server.');
         }
-
-        if (cmd === "generate-flashcard") {
-            const fcHtml = `
-            <div class="flashcard-container">
-                <div class="flashcard" onclick="this.classList.toggle('flipped')">
-                    <div class="flashcard-front">
-                        <div class="flashcard-title">Front</div>
-                        <div class="flashcard-content">What is a vector in physics?</div>
-                        <div class="flashcard-hint">Click to flip</div>
-                    </div>
-                    <div class="flashcard-back">
-                        <div class="flashcard-title">Back</div>
-                        <div class="flashcard-content">A quantity having direction as well as magnitude.</div>
-                        <div class="flashcard-hint">Click to flip back</div>
-                    </div>
-                </div>
-            </div>`;
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message system-msg`;
-            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${fcHtml}</div>`;
-            document.getElementById('chat-log').appendChild(msgDiv);
-            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
-            return;
-        }
-
-        if (cmd === "generate-handwritten") {
-            const hwHtml = `
-            <div style="background: #fdf6e3; padding: 20px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-family: 'Comic Sans MS', cursive, sans-serif; color: #2c3e50; line-height: 1.6; position: relative; max-width: 400px; margin: 16px 0;">
-                <div style="position: absolute; top: 0; left: 40px; bottom: 0; width: 2px; background: rgba(255,0,0,0.2);"></div>
-                <div style="padding-left: 30px;">
-                    <div style="text-align: right; font-size: 0.8rem; margin-bottom: 10px; color: #34495e;">Name: Balram<br>Date: Oct 12</div>
-                    <h3 style="margin-top: 0; text-decoration: underline; font-size: 1.2rem;">Photosynthesis Project</h3>
-                    <p style="font-size: 0.95rem;">Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water. Photosynthesis in plants generally involves the green pigment chlorophyll and generates oxygen as a byproduct.</p>
-                </div>
-            </div>`;
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message system-msg`;
-            msgDiv.innerHTML = `<div class="msg-bubble" style="padding:0; background:transparent; border:none; box-shadow:none;">${hwHtml}</div>`;
-            document.getElementById('chat-log').appendChild(msgDiv);
-            document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
-            return;
-        }
-
-        if (macroProgress) {
-            macroProgress.classList.add('active');
-            let steps = ["Initializing automation...", "Executing tasks...", "Finalizing..."];
-            let stepIdx = 0;
-            macroProgressText.textContent = steps[stepIdx];
-            
-            const interval = setInterval(() => {
-                stepIdx++;
-                if (stepIdx < steps.length) {
-                    macroProgressText.textContent = steps[stepIdx];
-                } else {
-                    clearInterval(interval);
-                    macroProgress.classList.remove('active');
-                    appendMessage('SYSTEM', `Automation Complete: ${cmd}`);
-                    logToTerminal(`Execution finished with exit code 0`, 'info');
-                }
-            }, 1000);
-        }
-        logToTerminal(`Running macro: ${cmd}`, 'info');
+        logToTerminal(`Sending macro to backend: ${cmd}`, 'info');
     });
 });
 
@@ -783,33 +995,86 @@ if (studentModeBtn && studentToolsContainer) {
     });
 }
 
-// Chat History Logic
+// Chat History Logic & Dynamic Drawer Renderer
+function updateHistoryDrawer(history) {
+    const historyContent = document.getElementById('history-content');
+    if (!historyContent) return;
+
+    historyContent.innerHTML = "";
+
+    if (!history || history.length === 0) {
+        historyContent.innerHTML = '<div style="padding: 24px; color: rgba(255,255,255,0.4); text-align: center; font-size: 0.85rem;">No saved chats</div>';
+        return;
+    }
+
+    // Extract user prompts for session items
+    const userPrompts = history.filter(h => h.sender === 'USER');
+    if (userPrompts.length === 0) {
+        historyContent.innerHTML = '<div style="padding: 24px; color: rgba(255,255,255,0.4); text-align: center; font-size: 0.85rem;">No saved chats</div>';
+        return;
+    }
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'history-group';
+    groupDiv.innerHTML = '<div class="history-group-title">Recent Conversations</div>';
+
+    // Show last 10 user chat prompts
+    userPrompts.slice(-10).reverse().forEach((item, idx) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `history-item ${idx === 0 ? 'active' : ''}`;
+        
+        const cleanTitle = item.text.replace(/\[IMAGE_ATTACHED:.*?\]/g, '').trim();
+        itemDiv.innerHTML = `
+            <div style="flex:1; display:flex; align-items:center; gap:10px; overflow:hidden;">
+                <i class="fa-regular fa-message"></i> 
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${cleanTitle}">${cleanTitle}</span>
+            </div>
+            <i class="fa-solid fa-trash-can delete-chat-btn" title="Delete History"></i>
+        `;
+        groupDiv.appendChild(itemDiv);
+    });
+
+    historyContent.appendChild(groupDiv);
+}
+
 const newChatBtn = document.querySelector('.new-chat-btn');
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
         chatLog.innerHTML = '';
+        lastVoiceText = '';
+        lastReplyText = '';
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ command: "CLEAR_HISTORY" }));
+        }
+
         const usageBar = document.querySelector('.context-usage-bar-fill');
         const usageText = document.querySelector('.context-usage-text');
         if (usageBar) usageBar.style.width = '0%';
         if (usageText) usageText.textContent = '0 / 128,000 (0%)';
         
+        updateHistoryDrawer([]);
         appendMessage('SYSTEM', 'Started a fresh conversation. How can I help you today?');
         
         const historyDrawer = document.getElementById('chat-history-drawer');
         if (historyDrawer) historyDrawer.classList.remove('open');
-        
-        document.querySelectorAll('.history-item.active').forEach(el => el.classList.remove('active'));
     });
 }
 
-const historyContent = document.querySelector('.history-content');
+const historyContent = document.getElementById('history-content');
 if (historyContent) {
     historyContent.addEventListener('click', (e) => {
         const deleteBtn = e.target.closest('.delete-chat-btn');
         if (deleteBtn) {
             e.stopPropagation();
-            const item = deleteBtn.closest('.history-item');
-            if (item) item.remove();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: "CLEAR_HISTORY" }));
+            }
+            chatLog.innerHTML = '';
+            lastVoiceText = '';
+            lastReplyText = '';
+            updateHistoryDrawer([]);
+            appendMessage('SYSTEM', 'Chat history deleted.');
         }
     });
 }

@@ -1,3 +1,0 @@
-[2026-07-21 11:44:06,097] [INFO] [ServentAI]: pywinauto not installed — UIAutomation will act as fallback check.
-[2026-07-21 11:44:19,169] [INFO] [ServentAI]: pywinauto not installed — UIAutomation will act as fallback check.
-[2026-07-21 11:44:19,170] [INFO] [ServentAI]: AIF Server initialized with Context, Memory, Execution, and Security Managers.

@@ -1,54 +1,72 @@
-import json
 import os
+import chromadb
 from src.logger import logger
 
-SKILLS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'skills.json')
+# Paths
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+)
+SKILLS_FILE = os.path.join(DATA_DIR, "skills.json")
+CHROMA_DIR = os.path.join(DATA_DIR, "chroma_db")
 
-def load_skills():
-    """Loads the skills database from the JSON file."""
-    if not os.path.exists(SKILLS_FILE):
-        return []
-    try:
-        with open(SKILLS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"[SkillRetriever] Failed to load skills database: {e}")
-        return []
+
+class SkillRetriever:
+    def __init__(self):
+        os.makedirs(CHROMA_DIR, exist_ok=True)
+        try:
+            self.client = chromadb.PersistentClient(path=CHROMA_DIR)
+            self.collection = self.client.get_or_create_collection(name="forge_skills")
+            logger.info("ChromaDB initialized for semantic skill retrieval.")
+        except Exception as e:
+            logger.error(f"[SkillRetriever] Failed to initialize ChromaDB: {e}")
+            self.client = None
+            self.collection = None
+
+    def get_relevant_examples(self, instruction: str, max_examples: int = 2) -> str:
+        """
+        Retrieves the most relevant skill examples using Vector/Semantic search.
+        """
+        if not self.collection:
+            logger.warning(
+                "[SkillRetriever] ChromaDB not available, falling back to empty examples."
+            )
+            return ""
+
+        try:
+            # Check if collection is empty
+            if self.collection.count() == 0:
+                return ""
+
+            results = self.collection.query(
+                query_texts=[instruction],
+                n_results=min(max_examples, self.collection.count()),
+            )
+
+            if not results["documents"] or not results["documents"][0]:
+                return ""
+
+            injection = "\nRELEVANT SKILL EXAMPLES (SEMANTIC MATCH):\n"
+            for idx, doc in enumerate(results["documents"][0]):
+                # the document itself will be the sequence string
+                meta = (
+                    results["metadatas"][0][idx]
+                    if results["metadatas"] and results["metadatas"][0]
+                    else {}
+                )
+                desc = meta.get("description", "Action Sequence")
+                injection += f"--- Example {idx+1}: {desc} ---\n"
+                injection += f"{doc}\n\n"
+
+            return injection
+        except Exception as e:
+            logger.error(f"[SkillRetriever] Query failed: {e}")
+            return ""
+
+
+# Singleton instance
+retriever = SkillRetriever()
+
 
 def get_relevant_examples(instruction: str, max_examples: int = 2) -> str:
-    """
-    Retrieves the most relevant skill examples based on keyword matching.
-    Returns a formatted string to inject into the LLM prompt.
-    """
-    skills = load_skills()
-    if not skills:
-        return ""
-        
-    instruction_lower = instruction.lower()
-    scored_skills = []
-    
-    for skill in skills:
-        score = 0
-        for kw in skill.get("keywords", []):
-            if kw.lower() in instruction_lower:
-                score += 1
-        
-        if score > 0:
-            scored_skills.append((score, skill))
-            
-    # Sort by score descending
-    scored_skills.sort(key=lambda x: x[0], reverse=True)
-    
-    # Take top N
-    top_skills = [skill for score, skill in scored_skills[:max_examples]]
-    
-    if not top_skills:
-        return ""
-        
-    # Format for injection
-    injection = "\nRELEVANT SKILL EXAMPLES:\n"
-    for idx, skill in enumerate(top_skills):
-        injection += f"--- Example {idx+1}: {skill.get('description', 'Action Sequence')} ---\n"
-        injection += f"{skill.get('example_sequence', '')}\n\n"
-        
-    return injection
+    """Wrapper function to maintain backward compatibility with planner.py"""
+    return retriever.get_relevant_examples(instruction, max_examples)

@@ -1,26 +1,32 @@
 import time
 from src.executors.base_executor import BaseExecutor
 from src.action_library import (
-    type_action, key_action, click_action, scroll_action,
-    open_app, navigate_browser, copy_all, paste_action, semantic_copy
+    type_action,
+    key_action,
+    click_action,
+    scroll_action,
+    open_app,
+    navigate_browser,
+    copy_all,
+    paste_action,
+    semantic_copy,
 )
 from src.vision import smart_wait_for_completion
+
 
 class PyAutoGUIExecutor(BaseExecutor):
     """
     PyAutoGUI / Keyboard-first fallback executor for Forge.
     Executes keyboard shortcuts, typing, run commands, and coordinate clicks.
     """
+
     def __init__(self):
         super().__init__(name="PyAutoGUIExecutor")
 
     def can_handle(self, action_type: str, step_data: dict) -> bool:
-        supported = [
-            "open_app", "open_browser", "type_text", "key_shortcut",
-            "scroll", "click_element", "copy_all", "paste", "speak", "wait_until",
-            "semantic_copy", "click_text", "hover_element"
-        ]
-        return action_type.lower() in supported
+        from src.action_library import action_registry
+
+        return action_type.lower() in action_registry.actions
 
     def execute(self, action_type: str, step_data: dict) -> tuple[bool, str]:
         action_type = action_type.lower()
@@ -43,6 +49,42 @@ class PyAutoGUIExecutor(BaseExecutor):
             elif action_type == "key_shortcut":
                 keys = step_data.get("keys") or step_data.get("key", "")
                 msg = key_action(keys)
+                return True, msg
+
+            elif action_type == "search_web":
+                query = step_data.get("query") or step_data.get("target", "")
+                from src.action_library import search_web
+                msg = search_web(query)
+                return True, msg
+
+            elif action_type == "close_app":
+                target = step_data.get("target", "")
+                from src.action_library import close_app
+                msg = close_app(target)
+                return True, msg
+
+            elif action_type == "take_screenshot":
+                from src.action_library import take_screenshot
+                msg = take_screenshot()
+                return True, msg
+
+            elif action_type == "play_spotify":
+                query = step_data.get("query") or step_data.get("target", "")
+                from src.action_library import play_spotify
+                msg = play_spotify(query)
+                return True, msg
+
+            elif action_type == "send_whatsapp":
+                contact = step_data.get("contact", "")
+                message = step_data.get("message", "")
+                from src.action_library import send_whatsapp
+                msg = send_whatsapp(contact, message)
+                return True, msg
+
+            elif action_type == "set_timer":
+                minutes = step_data.get("minutes", "10")
+                from src.action_library import set_timer
+                msg = set_timer(minutes)
                 return True, msg
 
             elif action_type == "scroll":
@@ -69,19 +111,18 @@ class PyAutoGUIExecutor(BaseExecutor):
             elif action_type == "speak":
                 text = step_data.get("text", "")
                 try:
-                    import pyttsx3
-                    engine = pyttsx3.init()
-                    engine.say(text)
-                    engine.runAndWait()
-                except Exception:
-                    pass
+                    from src.tts_module import tts_manager
+
+                    tts_manager.speak_async(text)
+                except Exception as e:
+                    return False, f"TTS Error: {e}"
                 return True, f"Spoke: '{text}'"
 
             elif action_type == "wait_until":
                 condition = step_data.get("condition", "")
                 if not condition or str(condition).strip() == "":
                     return True, "No wait condition provided, skipping."
-                
+
                 success = smart_wait_for_completion(condition)
                 if success:
                     return True, f"Wait condition met: '{condition}'"
@@ -100,20 +141,24 @@ class PyAutoGUIExecutor(BaseExecutor):
                     from pytesseract import Output
                     from PIL import ImageGrab
                     import pyautogui
+
                     img = ImageGrab.grab()
                     data = pytesseract.image_to_data(img, output_type=Output.DICT)
                     hovered = False
-                    for i in range(len(data['text'])):
-                        if target_text.lower() in data['text'][i].lower():
-                            x = data['left'][i] + data['width'][i] / 2
-                            y = data['top'][i] + data['height'][i] / 2
+                    for i in range(len(data["text"])):
+                        if target_text.lower() in data["text"][i].lower():
+                            x = data["left"][i] + data["width"][i] / 2
+                            y = data["top"][i] + data["height"][i] / 2
                             pyautogui.moveTo(x, y, duration=0.2)
                             hovered = True
                             break
                     if hovered:
                         return True, f"OCR hovered over text: '{target_text}'"
                     else:
-                        return False, f"OCR failed to find text to hover: '{target_text}'"
+                        return (
+                            False,
+                            f"OCR failed to find text to hover: '{target_text}'",
+                        )
                 except Exception as e:
                     return False, f"OCR hover error: {e}"
 
@@ -125,27 +170,47 @@ class PyAutoGUIExecutor(BaseExecutor):
                     from pytesseract import Output
                     from PIL import ImageGrab
                     import pyautogui
+
                     img = ImageGrab.grab()
                     data = pytesseract.image_to_data(img, output_type=Output.DICT)
                     clicked = False
                     match_count = 0
-                    for i in range(len(data['text'])):
-                        if target_text.lower() in data['text'][i].lower():
+                    for i in range(len(data["text"])):
+                        if target_text.lower() in data["text"][i].lower():
                             match_count += 1
                             if match_count == target_index:
-                                x = data['left'][i] + data['width'][i] / 2
-                                y = data['top'][i] + data['height'][i] / 2
+                                x = data["left"][i] + data["width"][i] / 2
+                                y = data["top"][i] + data["height"][i] / 2
                                 pyautogui.click(x, y)
                                 clicked = True
                                 break
                     if clicked:
-                        return True, f"OCR clicked text: '{target_text}' (index {target_index})"
+                        return (
+                            True,
+                            f"OCR clicked text: '{target_text}' (index {target_index})",
+                        )
                     else:
-                        return False, f"OCR failed to find text: '{target_text}' (index {target_index})"
+                        return (
+                            False,
+                            f"OCR failed to find text: '{target_text}' (index {target_index})",
+                        )
                 except Exception as e:
                     return False, f"OCR click error: {e}"
 
-            return False, f"Unknown action: '{action_type}'"
+            else:
+                # Try dynamic registry for plugins
+                from src.action_library import action_registry
+
+                if action_type in action_registry.actions:
+                    import inspect
+
+                    func = action_registry.actions[action_type]
+                    sig = inspect.signature(func)
+                    kwargs = {k: v for k, v in step_data.items() if k in sig.parameters}
+                    msg = func(**kwargs)
+                    return True, str(msg)
+
+                return False, f"Unknown action: '{action_type}'"
 
         except Exception as e:
             return False, f"PyAutoGUI error executing {action_type}: {e}"

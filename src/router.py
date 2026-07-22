@@ -1,9 +1,11 @@
 from enum import Enum
 
+
 class Tier(Enum):
     INSTANT = "instant"  # No AI, <50ms
-    FAST = "fast"        # OCR check, <200ms
-    SLOW = "slow"        # Full AI, 2-4s
+    FAST = "fast"  # OCR check, <200ms
+    SLOW = "slow"  # Full AI, 2-4s
+
 
 KNOWN_ACTIONS = {
     "whatsapp": {
@@ -15,8 +17,9 @@ KNOWN_ACTIONS = {
     },
     "gemini": {
         "type_prompt": ("ask gemini", 0.95),
-    }
+    },
 }
+
 
 def route_action(app: str, action: str, dna: dict) -> Tier:
     """Decide which tier to use"""
@@ -26,5 +29,5 @@ def route_action(app: str, action: str, dna: dict) -> Tier:
         if pattern.lower() in all_text and conf > 0.85:
             return Tier.INSTANT
         return Tier.FAST
-    
+
     return Tier.SLOW

@@ -2,11 +2,13 @@ import os
 import subprocess
 from src.logger import logger
 
+
 class DevExecutor:
     """
     Execution backend for Developer Mode (Coding Assistant Capabilities).
     Allows Forge to read/write code files and execute terminal commands.
     """
+
     def __init__(self):
         self.name = "DevExecutor"
 
@@ -54,7 +56,7 @@ class DevExecutor:
                     cwd=cwd,
                     capture_output=True,
                     text=True,
-                    timeout=30 # Prevent hanging commands
+                    timeout=30,  # Prevent hanging commands
                 )
                 output = result.stdout if result.stdout else result.stderr
                 if len(output) > 5000:
@@ -62,7 +64,10 @@ class DevExecutor:
                 if result.returncode == 0:
                     return True, f"Command successful:\n{output}"
                 else:
-                    return False, f"Command failed (Code {result.returncode}):\n{output}"
+                    return (
+                        False,
+                        f"Command failed (Code {result.returncode}):\n{output}",
+                    )
             except subprocess.TimeoutExpired:
                 return False, "Command timed out after 30 seconds."
             except Exception as e:
@@ -78,11 +83,13 @@ class DevExecutor:
                 # Simple recursive grep implementation for NotebookLM-style search
                 for root, _, files in os.walk(directory):
                     for file in files:
-                        if not file.endswith(('.txt', '.md', '.py', '.js', '.html', '.csv', '.json')):
+                        if not file.endswith(
+                            (".txt", ".md", ".py", ".js", ".html", ".csv", ".json")
+                        ):
                             continue
                         filepath = os.path.join(root, file)
                         try:
-                            with open(filepath, 'r', encoding='utf-8') as f:
+                            with open(filepath, "r", encoding="utf-8") as f:
                                 lines = f.readlines()
                                 for i, line in enumerate(lines):
                                     if query in line.lower():
@@ -90,17 +97,21 @@ class DevExecutor:
                                         start = max(0, i - 1)
                                         end = min(len(lines), i + 2)
                                         snippet = "".join(lines[start:end]).strip()
-                                        results.append(f"File: {filepath}\nMatch:\n{snippet}\n---")
-                                        if len(results) >= 20: # Cap to avoid massive output
+                                        results.append(
+                                            f"File: {filepath}\nMatch:\n{snippet}\n---"
+                                        )
+                                        if (
+                                            len(results) >= 20
+                                        ):  # Cap to avoid massive output
                                             break
                         except Exception:
                             continue
                     if len(results) >= 20:
                         break
-                
+
                 if not results:
                     return True, "No matches found in the knowledge base."
-                
+
                 output = "\n".join(results)
                 return True, f"Found {len(results)} matches:\n{output}"
             except Exception as e:

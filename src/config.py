@@ -51,7 +51,7 @@ _default_browser_map = {
     "twitch": "https://twitch.tv",
 
     # Social & Community
-    "whatsapp": "WhatsApp",
+    "whatsapp": "whatsapp://send",
     "telegram": "https://web.telegram.org",
     "discord": "https://discord.com/app",
     "reddit": "https://reddit.com",

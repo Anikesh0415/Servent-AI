@@ -69,9 +69,12 @@ async def execute_task_plan(plan: list, update_callback=None) -> bool:
         notify(f"[TRACE] Step {idx+1}/{len(plan)}: {action_type} ({target})")
 
         # ── 1. OBSERVE & PREFLIGHT ──────────────────────────────────────────
-        pre_res = preflight_check(target)
-        if not pre_res["clear_to_proceed"]:
-            notify(f"[TRACE] ⚠️ Preflight Warning: {pre_res['popup_description']}")
+        # Bypass 15s slow vision preflight for dedicated macros
+        fast_macros = ["send_whatsapp", "set_timer", "open_app", "open_browser"]
+        if action_type not in fast_macros:
+            pre_res = preflight_check(target)
+            if not pre_res["clear_to_proceed"]:
+                notify(f"[TRACE] ⚠️ Preflight Warning: {pre_res['popup_description']}")
 
         # ── 1.5. SAFETY GUARDRAIL ───────────────────────────────────────────
         def is_safe_action(action: str, tgt: str) -> bool:

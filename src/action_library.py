@@ -163,12 +163,20 @@ def open_app(app_name: str) -> str:
 
     target = BROWSER_APP_MAP.get(app_lower)
 
+    # Force Brave Browser if available
+    brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+    if os.path.exists(brave_path):
+        webbrowser.register('brave', None, webbrowser.BackgroundBrowser(brave_path))
+        browser = webbrowser.get('brave')
+    else:
+        browser = webbrowser
+
     if target:
-        webbrowser.open(target)
+        browser.open(target)
         return f"Opened browser to: {target}"
     elif app_lower.startswith(("http://", "https://", "www.")):
         url = app_name if app_name.startswith("http") else "https://" + app_name
-        webbrowser.open(url)
+        browser.open(url)
         return f"Opened browser to: {url}"
     else:
         _windows_search(app_name)
@@ -181,7 +189,15 @@ def navigate_browser(url: str) -> str:
     """
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    webbrowser.open(url)
+        
+    brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+    if os.path.exists(brave_path):
+        webbrowser.register('brave', None, webbrowser.BackgroundBrowser(brave_path))
+        browser = webbrowser.get('brave')
+    else:
+        browser = webbrowser
+        
+    browser.open(url)
     return f"Navigated to: {url}"
 
 

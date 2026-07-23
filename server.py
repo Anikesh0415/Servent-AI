@@ -462,7 +462,15 @@ class AIF_Server:
                         # ---------------------------
                         if plan:
                             self.fsm.current_context["pending_plan"] = plan
-                            steps_summary = "\n".join([f"- {s.get('action', '').replace('_', ' ').title()}: {s.get('target', s.get('name', s.get('url', s.get('text', s.get('keys', '')))))}" for s in plan])
+                            steps_strs = []
+                            for i, s in enumerate(plan):
+                                action = s.get('action', '').replace('_', ' ').title()
+                                target = s.get('target', s.get('name', s.get('url', s.get('text', s.get('keys', '')))))
+                                desc = f"- {action}: {target}"
+                                if s.get('action') == "send_whatsapp":
+                                    desc += f"\n   (Macro: Opens Native WhatsApp Desktop -> Wait 2s -> Ctrl+F '{s.get('contact', '')}' -> Type '{s.get('message', '')}' -> Enter)"
+                                steps_strs.append(desc)
+                            steps_summary = "\n".join(steps_strs)
                             update_ui(f"PROPOSED PLAN:\n{steps_summary}\n\nSay 'YES' / click Confirm to execute, or 'NO' to cancel.")
                             
                             # Announce confirmation via TTS

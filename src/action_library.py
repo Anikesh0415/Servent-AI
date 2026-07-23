@@ -2,6 +2,7 @@ import pyautogui
 import pyperclip
 import time
 import webbrowser
+import os
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0  # No inter-call delays — we control timing ourselves

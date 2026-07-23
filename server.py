@@ -462,7 +462,7 @@ class AIF_Server:
                         # ---------------------------
                         if plan:
                             self.fsm.current_context["pending_plan"] = plan
-                            steps_summary = "\n".join([f"- {s.get('action', '').replace('_', ' ').title()}: {s.get('name', s.get('url', s.get('text', s.get('keys', s.get('target', '')))))}" for s in plan])
+                            steps_summary = "\n".join([f"- {s.get('action', '').replace('_', ' ').title()}: {s.get('target', s.get('name', s.get('url', s.get('text', s.get('keys', '')))))}" for s in plan])
                             update_ui(f"PROPOSED PLAN:\n{steps_summary}\n\nSay 'YES' / click Confirm to execute, or 'NO' to cancel.")
                             
                             # Announce confirmation via TTS

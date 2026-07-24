@@ -265,23 +265,41 @@ def play_spotify(query: str) -> str:
 
 def send_whatsapp(contact: str, message: str) -> str:
     """Opens WhatsApp, searches contact, and sends message."""
-    open_app("WhatsApp")
-    time.sleep(2.0)
+    activated = False
+    try:
+        import pygetwindow as gw
+        wins = gw.getWindowsWithTitle("WhatsApp")
+        if wins:
+            for w in wins:
+                if w.title and "WhatsApp" in w.title:
+                    if w.isMinimized:
+                        w.restore()
+                    w.activate()
+                    activated = True
+                    break
+    except Exception as e:
+        logger.warning(f"Could not focus WhatsApp via pygetwindow: {e}")
+
+    if not activated:
+        open_app("WhatsApp")
+        time.sleep(2.5)
+
+    time.sleep(1.0)
     _hotkey("ctrl", "f")
     time.sleep(0.5)
     type_action(contact)
-    time.sleep(1.0)
+    time.sleep(1.2)
     _hotkey("down")
-    time.sleep(0.3)
+    time.sleep(0.4)
     _hotkey("enter")
-    time.sleep(0.5)
+    time.sleep(1.0)
     
     if message.lower() in ["[clipboard]", "clipboard", "paste", "copied text", ""] or any(w in message.lower() for w in ["copy", "paste", "generated", "letter"]):
         _hotkey("ctrl", "v")
     else:
         type_action(message)
 
-    time.sleep(0.3)
+    time.sleep(0.5)
     _hotkey("enter")
     return f"Sent message to '{contact}' on WhatsApp."
 

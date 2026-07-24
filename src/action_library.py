@@ -275,10 +275,15 @@ def send_whatsapp(contact: str, message: str) -> str:
     time.sleep(0.3)
     _hotkey("enter")
     time.sleep(0.5)
-    type_action(message)
+    
+    if message.lower() in ["[clipboard]", "clipboard", "paste", "copied text", ""] or any(w in message.lower() for w in ["copy", "paste", "generated", "letter"]):
+        _hotkey("ctrl", "v")
+    else:
+        type_action(message)
+
     time.sleep(0.3)
     _hotkey("enter")
-    return f"Sent message to '{contact}' on WhatsApp: '{message}'"
+    return f"Sent message to '{contact}' on WhatsApp."
 
 
 def set_timer(minutes: str = "10") -> str:

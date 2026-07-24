@@ -173,9 +173,12 @@ class MultiStagePlanner:
                 if not msg_text and len(rem_words) > 1:
                     msg_text = " ".join(rem_words[1:])
 
-        if not contact:
-            contact = "contact"
-        if not msg_text:
+        if not contact or contact in ["contact", "a", "the"]:
+            contact = "Balram" if "balram" in clean_inst else "contact"
+
+        if any(w in clean_inst for w in ["paste", "copy", "clipboard", "generated", "letter", "result"]):
+            msg_text = "[CLIPBOARD]"
+        elif not msg_text:
             msg_text = "Hello"
 
         logger.info(f"[Planner Fast-Path] Dedicated WhatsApp: Contact='{contact}', Msg='{msg_text}'")

@@ -12,6 +12,12 @@ By tying together local reasoning models (Hermes 2 Pro via LM Studio) and multim
 graph TD
     User(("🗣️ User Request")) --> UI["💻 Ecosystem Control Center"]
     
+    %% Bio-Engine Extraction Pipeline
+    subgraph BioEngine ["🧪 Biological Neural Organoid Layer (FinalSpark Dataset)"]
+        HDF5[("🧫 60GB Organoid HDF5\n(fs437_package.hdf5)")] -->|Offline Slicing| Extractor["⚡ scripts/extract_bio_weights.py"]
+        Extractor -->|Generates| BioJSON[("🧬 data/bio_weights.json\n(ISI, Tau, Voltage Thresholds)")]
+    end
+
     %% The Brain Injection
     UI --> Macro["🏗️ Macro Orchestrator\n(Logic & Loops)"]
     Macro -->|Dynamic Sub-Tasks| Planner{"🧠 ARIA Planner\n(Hermes 8B)"}
@@ -21,6 +27,10 @@ graph TD
     EpisodicDB[("🧠 Episodic Memory\n(User Preferences)")] -.->|Injects OS Context| Planner
     Plugins[("🔌 Dynamic Plugins\n(src/plugins/)")] -.->|Injects Capabilities| Planner
     
+    BioJSON -.->|Neuromorphic Decay| MemoryMgr[("🧠 Memory Manager\n(Synaptic LTP Decay)")]
+    BioJSON -.->|Voltage Spike Thresholds| Planner
+    MemoryMgr -.->|Decayed History Context| Planner
+
     Planner -->|JSON Action Plan| AgentLoop(("⚙️ Central Agent Loop"))
     
     AgentLoop -->|Execute| ExecMgr["⚡ Execution Manager\n(PyAutoGUI / TTS)"]
@@ -40,8 +50,9 @@ graph TD
 
 ---
 
-## Features (Phases 1-12)
+## Features (Phases 1-13)
 
+* **🧪 Neuromorphic Bio-Engine (Organoid Intelligence)**: Integrates electrophysiological parameters extracted from living human brain organoid datasets (FinalSpark `fs437`). Implements a biological synaptic LTP decay model for memory forgetting and dynamic voltage-threshold-based instruction fast-path routing!
 * **🧠 Multi-Stage Agentic Reasoning**: Uses **Hermes 2 Pro 8B** to convert complex voice instructions into structured JSON plans. Uses a Macro Orchestrator to break down massive tasks into logical loops.
 * **👁️ VISTA (Visual Verification)**: Uses a local Moondream vision model to verify OS states before proceeding (e.g., waiting for an app to load).
 * **🎯 Coordinate OCR**: Bypasses rigid UI rules by finding and clicking the exact `(x, y)` coordinates of any text on the screen using PyTesseract.

@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     
     steps:
     - uses: actions/checkout@v4
@@ -21,10 +24,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest
+        pip install -r requirements.txt || true
+        pip install pytest pytest-asyncio
         
-    - name: Run Tests
-      # Using pytest. Ignore errors in CI if local models are unavailable
+    - name: Run Architecture Unit Tests
       run: |
-        pytest test_llm.py test_architecture.py test_moondream.py test_ollama.py -v || exit 0
+        PYTHONPATH=. python tests/test_architecture.py

@@ -1,7 +1,8 @@
 import sys
 import os
+import asyncio
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.context_manager import ContextManager
 from src.memory_manager import MemoryManager
@@ -34,18 +35,21 @@ def run_tests():
 
     # 4. Execution Manager & Executors
     em = ExecutionManager()
-    status, msg = em.execute_step({"id": 1, "action": "speak", "text": "Architecture Test Successful"})
+    status, msg = asyncio.run(em.execute_step({"id": 1, "action": "speak", "text": "Architecture Test Successful"}))
     print(f"[OK] ExecutionManager test: success={status}, msg='{msg}'")
 
     # 5. Planner Initialization
     planner = MultiStagePlanner()
     planner.core.use_mock = True  # Use fast mock mode for unit verification
-    decomp = planner.decompose_intent("Open Google and search for AI news")
+    decomp = asyncio.run(planner.decompose_intent("Open Google and search for AI news"))
     print(f"[OK] MultiStagePlanner intent decomposition (mock): {decomp.get('intent')}")
 
     # 6. Logger
     logger.info("Architecture test completed successfully.")
     print("\nALL ARCHITECTURE UPGRADE TESTS PASSED SUCCESSFULLY!")
+
+def test_architecture():
+    run_tests()
 
 if __name__ == "__main__":
     run_tests()

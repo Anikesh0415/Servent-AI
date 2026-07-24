@@ -299,7 +299,7 @@ def copy_all() -> str:
     return "Selected all and copied to clipboard."
 
 
-def semantic_copy(extraction_goal: str) -> str:
+async def semantic_copy(extraction_goal: str) -> str:
     """
     Copies all text on the screen, passes it to the local LLM to extract
     exactly the information matching the extraction_goal, and places the
@@ -324,7 +324,7 @@ def semantic_copy(extraction_goal: str) -> str:
     prompt = f"Here is raw, messy text copied from a webpage/screen:\n\n---\n{raw_text[:8000]}\n---\n\nExtract exactly the information that matches this goal: '{extraction_goal}'. Output ONLY the extracted text and absolutely nothing else."
 
     llm = LocalLLMCore()
-    extracted_text = llm.query_llm([{"role": "user", "content": prompt}])
+    extracted_text = await llm.query_llm([{"role": "user", "content": prompt}])
 
     pyperclip.copy(extracted_text)
     return f"Semantically extracted data and placed into clipboard."

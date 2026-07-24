@@ -26,6 +26,24 @@ class MemoryManager:
         self.action_history = []
         self.long_term_memory = self._load_long_term_memory()
 
+        # BIO-ORGANOID INTEGRATION
+        self.use_bio_engine = False
+        self.bio_weights = {}
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), "..", "config.json")
+            if os.path.exists(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    self.use_bio_engine = config.get("USE_BIO_ORGANOID_ENGINE", False)
+            if self.use_bio_engine:
+                weights_path = os.path.join(os.path.dirname(__file__), "..", "data", "bio_weights.json")
+                if os.path.exists(weights_path):
+                    with open(weights_path, "r", encoding="utf-8") as f:
+                        self.bio_weights = json.load(f)
+                    print(f"[Bio-Engine] Neuromorphic Memory Enabled. tau={self.bio_weights.get('ltp_decay_tau_days')} days")
+        except Exception as e:
+            print(f"[Bio-Engine] Failed to load bio engine configs: {e}")
+
     # --- WORKING MEMORY ---
     def set_working_value(self, key: str, value):
         """Stores a temporary key-value pair for the duration of a task session."""
@@ -93,7 +111,33 @@ class MemoryManager:
 
     def get_recent_history_context(self, limit: int = 5) -> list:
         """Returns the last `limit` action entries for planner context."""
-        return self.action_history[-limit:]
+        history = self.action_history[-limit:]
+
+        if self.use_bio_engine and self.bio_weights:
+            import datetime
+            import math
+            current_time = datetime.datetime.now()
+            tau_days = self.bio_weights.get("ltp_decay_tau_days", 1.0)
+            
+            decayed_history = []
+            for entry in history:
+                entry_time = datetime.datetime.strptime(entry["timestamp"], "%Y-%m-%d %H:%M:%S")
+                days_old = (current_time - entry_time).total_seconds() / 86400.0
+                
+                # Biological exponential decay: e^(-t / tau)
+                retention_strength = math.exp(-days_old / tau_days)
+                
+                # If memory is weaker than 10%, we prune it (organoid forgets)
+                if retention_strength > 0.1:
+                    entry_copy = entry.copy()
+                    entry_copy["synaptic_weight"] = round(retention_strength, 4)
+                    decayed_history.append(entry_copy)
+                else:
+                    print(f"[Bio-Engine] Pruned weak memory from context (weight < 0.1): {entry['action']}")
+                    
+            return decayed_history
+
+        return history
 
     # --- LONG-TERM PERSISTENT MEMORY ---
     def _load_long_term_memory(self) -> dict:

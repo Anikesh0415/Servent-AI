@@ -46,6 +46,22 @@ class MultiStagePlanner:
 
     def __init__(self):
         self.core = LocalLLMCore(use_mock=False)
+        self.use_bio_engine = False
+        self.bio_weights = {}
+        try:
+            import json, os
+            config_path = os.path.join(os.path.dirname(__file__), "..", "config.json")
+            if os.path.exists(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    self.use_bio_engine = config.get("USE_BIO_ORGANOID_ENGINE", False)
+            if self.use_bio_engine:
+                weights_path = os.path.join(os.path.dirname(__file__), "..", "data", "bio_weights.json")
+                if os.path.exists(weights_path):
+                    with open(weights_path, "r", encoding="utf-8") as f:
+                        self.bio_weights = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load bio engine config in Planner: {e}")
 
     async def decompose_intent(self, instruction: str, context_summary: str = "") -> dict:
         """Stage 1: Analyzes user intent and decomposes into logical sub-goals."""
@@ -176,6 +192,19 @@ class MultiStagePlanner:
     ) -> list:
         clean_inst = instruction.strip().lower()
         
+        # 0. Smart Agent Fallback for Complex Multi-App Instructions
+        word_count = len(clean_inst.split())
+        threshold = 15
+        if self.use_bio_engine and self.bio_weights:
+            # Scale threshold based on organoid activation threshold
+            bio_thresh = self.bio_weights.get("spike_activation_threshold_uv", 230)
+            threshold = max(5, int(bio_thresh / 15.0)) # Neuromorphic mapping
+            logger.info(f"[Bio-Engine] Using dynamic instruction threshold: {threshold} (derived from spike_threshold)")
+            
+        if word_count > threshold or clean_inst.count(" and ") >= 2:
+            logger.info("[Planner Fast-Path] Complex instruction detected, routing to Smart Agent (dynamic_task).")
+            return [{"action": "dynamic_task", "target": instruction, "name": "Dynamic Task"}]
+
         # Handle comma-separated multi-tasks (e.g. "open notepad, open calculator")
         if "," in clean_inst:
             parts = [p.strip() for p in clean_inst.split(",")]
@@ -469,8 +498,11 @@ For 3D diagrams or quizzes, use `generate_study_html` to output a fully self-con
             f"Target Sub-Goals: {sub_goals_str}\n"
             f"User Command: {instruction}\n"
             f"{dynamic_examples}\n"
-            "CRITICAL: Translate the sub-goals into VALID actions. 'Paste Text' is NOT an action (use type_text or key_shortcut). Do NOT blindly copy the sub-goals. You MUST use dedicated plugin macros when available.\n"
-
+            "CRITICAL BEHAVIOR RULES:\n"
+            "1. Translate sub-goals into VALID actions. 'Paste' is NOT an action (use type_text or key_shortcut).\n"
+            "2. DO NOT blindly copy sub-goals or output 'unknown' thought steps.\n"
+            "3. If using an example from the skills list, you MUST REPLACE placeholders like <Prompt for Gemini> or <Video Name> with the ACTUAL text requested by the user. NEVER output literal '<...>' tags.\n"
+            "4. You MUST use dedicated plugin macros when available.\n\n"
             "Output the JSON action plan array now:"
         )
 
@@ -485,7 +517,7 @@ For 3D diagrams or quizzes, use `generate_study_html` to output a fully self-con
         from src.action_library import action_registry
         for step in plan:
             action_name = step.get("action", "")
-            if action_name not in action_registry.actions and action_name not in ["unknown", "dynamic_task", "open_app", "close_app", "key_shortcut", "type_text", "take_screenshot", "set_timer", "open_browser", "search_web"]:
+            if action_name not in action_registry.actions and action_name not in ["unknown", "dynamic_task", "open_app", "close_app", "key_shortcut", "type_text", "take_screenshot", "set_timer", "open_browser", "search_web", "wait_until", "semantic_copy"]:
                 # If the LLM hallucinated an action, or output "unknown", force it to dynamic_task
                 step["action"] = "dynamic_task"
                 

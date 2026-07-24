@@ -1,0 +1,7 @@
+{
+    "organoid_source": "fs437",
+    "average_inter_spike_interval_ms": 63.6312,
+    "ltp_decay_tau_days": 1.0,
+    "spike_activation_threshold_uv": 230.5991,
+    "event_burst_ratio": 1.618
+}

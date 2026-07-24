@@ -28,7 +28,7 @@ class PyAutoGUIExecutor(BaseExecutor):
 
         return action_type.lower() in action_registry.actions
 
-    def execute(self, action_type: str, step_data: dict) -> tuple[bool, str]:
+    async def execute(self, action_type: str, step_data: dict) -> tuple[bool, str]:
         action_type = action_type.lower()
         try:
             if action_type == "open_app":
@@ -131,7 +131,7 @@ class PyAutoGUIExecutor(BaseExecutor):
 
             elif action_type == "semantic_copy":
                 goal = step_data.get("goal") or step_data.get("text", "")
-                msg = semantic_copy(goal)
+                msg = await semantic_copy(goal)
                 return True, msg
 
             elif action_type == "hover_element":

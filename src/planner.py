@@ -481,8 +481,17 @@ For 3D diagrams or quizzes, use `generate_study_html` to output a fully self-con
         )
         plan = self._clean_and_extract(raw_results)
 
-        # Ensure confidence scores exist
+        # Ensure confidence scores exist and validate actions
+        from src.action_library import action_registry
         for step in plan:
+            action_name = step.get("action", "")
+            if action_name not in action_registry.actions and action_name not in ["unknown", "dynamic_task", "open_app", "close_app", "key_shortcut", "type_text", "take_screenshot", "set_timer", "open_browser", "search_web"]:
+                # If the LLM hallucinated an action, or output "unknown", force it to dynamic_task
+                step["action"] = "dynamic_task"
+                
+            if step.get("action") == "unknown":
+                step["action"] = "dynamic_task"
+
             if "confidence" not in step:
                 step["confidence"] = 0.90
             if "anchor_check" not in step and "target" in step:

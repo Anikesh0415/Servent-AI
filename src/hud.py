@@ -133,27 +133,27 @@ class ServentHUD(ctk.CTk):
 
     def update_vision(self, active: bool):
         color = "green" if active else "orange"
-        self.indicator_vision.configure(fg_color=color)
+        self.after(0, lambda: self.indicator_vision.configure(fg_color=color))
 
     def update_cognitive(self, thinking: bool):
         color = "#00a2ff" if thinking else "gray"  # Blue when thinking
-        self.indicator_cog.configure(fg_color=color)
+        self.after(0, lambda: self.indicator_cog.configure(fg_color=color))
 
     def update_audio(self, volume_level: float):
         # Normalize volume to 0.0 - 1.0 safely
         val = max(0.0, min(1.0, volume_level))
-        self.audio_bar.set(val)
+        self.after(0, lambda: self.audio_bar.set(val))
 
     def update_status(self, text: str):
-        self.lbl_action.configure(text=f"Status: {text}", text_color="#aaaaaa")
+        self.after(0, lambda: self.lbl_action.configure(text=f"Status: {text}", text_color="#aaaaaa"))
 
     def update_clutch(self, engaged: bool):
         if engaged:
-            self.lbl_action.configure(
+            self.after(0, lambda: self.lbl_action.configure(
                 text="[ TRACKING PAUSED (CLUTCH) ]", text_color="yellow"
-            )
+            ))
         else:
-            self.lbl_action.configure(text="Status: IDLE", text_color="#aaaaaa")
+            self.after(0, lambda: self.lbl_action.configure(text="Status: IDLE", text_color="#aaaaaa"))
 
 
 def launch_hud(killswitch_cb=None):
